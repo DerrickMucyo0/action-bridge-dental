@@ -7,7 +7,7 @@ import type {
   UnsupportedResult,
 } from '@actionbridge/contracts';
 import { calculateSchedule } from './calculate.js';
-import { checkCase, type CaseCheck, type CaseContext } from './case-check.js';
+import { checkCase, type CaseCheck, type CaseCheckInput, type CaseContext } from './case-check.js';
 import { ENGINE_VERSION } from './version.js';
 
 /** Well-formed but contradictory input. The API maps this to HTTP 422 (decision D-02). */
@@ -31,7 +31,7 @@ export function estimateCase(input: DentalCaseInput): EngineEstimateResult {
  * Estimate an explicit schedule. Every procedure must appear once, on a permitted date:
  * inside its dentist window when it has one, otherwise on its baseline date.
  */
-export function estimateSchedule(input: DentalCaseInput, schedule: ScheduleEntry[]): EngineEstimateResult {
+export function estimateSchedule(input: CaseCheckInput, schedule: ScheduleEntry[]): EngineEstimateResult {
   const check = checkCase(input);
   if (check.kind !== 'ok') return notEstimated(check, input.caseRevision);
 

@@ -3,11 +3,18 @@ import type {
   ErrorIssue,
   Limitation,
   MissingFact,
+  PlanComparisonPolicy,
   PlanYear,
   Policy,
   Procedure,
 } from '@actionbridge/contracts';
 import { MAX_PROCEDURES } from './version.js';
+
+/** Also accepts comparison facts whose policy rules or benefit category are explicitly unknown. */
+export type CaseCheckInput = Omit<DentalCaseInput, 'policy' | 'procedures'> & {
+  policy: PlanComparisonPolicy | null;
+  procedures: (Omit<Procedure, 'category'> & { category: string | null })[];
+};
 
 export interface PlanYearRef extends PlanYear {
   id: string;
@@ -50,7 +57,7 @@ const DENTIST_TIMING_SOURCES = new Set(['dentist_supplied', 'fictional_dentist_s
  * Schedule-independent checks, in order of precedence:
  * contradictions (422) → unsupported plan structure → missing critical facts.
  */
-export function checkCase(input: DentalCaseInput): CaseCheck {
+export function checkCase(input: CaseCheckInput): CaseCheck {
   const issues = findContradictions(input);
   if (issues.length > 0) return { kind: 'invalid', issues };
 
@@ -78,7 +85,7 @@ export function checkCase(input: DentalCaseInput): CaseCheck {
   };
 }
 
-export function sortedPlanYears(input: DentalCaseInput): PlanYearRef[] {
+export function sortedPlanYears(input: CaseCheckInput): PlanYearRef[] {
   return Object.entries(input.planYears)
     .map(([id, planYear]) => ({ id, ...planYear }))
     .sort((a, b) => (a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0));
@@ -118,7 +125,7 @@ function resolveProcedure(
   };
 }
 
-function findContradictions(input: DentalCaseInput): ErrorIssue[] {
+function findContradictions(input: CaseCheckInput): ErrorIssue[] {
   const issues: ErrorIssue[] = [];
   const issue = (fieldPath: string | null, code: string, message: string) =>
     issues.push({ fieldPath, code, message });
@@ -205,7 +212,7 @@ function findContradictions(input: DentalCaseInput): ErrorIssue[] {
   if (issues.length === 0) {
     for (const p of input.procedures) {
       for (const prereq of p.prerequisiteIds) {
-        const before = input.procedures.find((q) => q.id === prereq) as Procedure;
+        const before = input.procedures.find((q) => q.id === prereq)!;
         const beforeDate = before.proposedDate ?? before.dentistEarliestDate;
         const afterDate = p.proposedDate ?? p.dentistEarliestDate;
         if (beforeDate !== null && afterDate !== null && beforeDate > afterDate) {
@@ -221,7 +228,7 @@ function findContradictions(input: DentalCaseInput): ErrorIssue[] {
   return issues;
 }
 
-function findUnsupported(input: DentalCaseInput): Limitation[] {
+function findUnsupported(input: CaseCheckInput): Limitation[] {
   const limitations: Limitation[] = [];
   if (input.procedures.length > MAX_PROCEDURES) {
     limitations.push({
@@ -241,14 +248,14 @@ function findUnsupported(input: DentalCaseInput): Limitation[] {
   const policy = input.policy;
   if (policy === null) return limitations;
 
-  if (!policy.deductibleBeforeCoinsurance) {
+  if (policy.deductibleBeforeCoinsurance === false) {
     limitations.push({
       code: 'DEDUCTIBLE_AFTER_COINSURANCE_UNSUPPORTED',
       message: 'Only plans that apply the deductible before coinsurance are supported.',
       fieldPath: 'policy.deductibleBeforeCoinsurance',
     });
   }
-  if (!policy.allServicesCovered) {
+  if (policy.allServicesCovered === false) {
     limitations.push({
       code: 'PARTIAL_COVERAGE_UNSUPPORTED',
       message: 'This plan does not cover every listed service; coverage per service cannot be confirmed yet.',
@@ -261,7 +268,7 @@ function findUnsupported(input: DentalCaseInput): Limitation[] {
     ['frequencyRestrictions', 'FREQUENCY_RESTRICTION_UNSUPPORTED', 'Frequency limits'],
   ] as const;
   for (const [field, code, label] of restrictionKinds) {
-    if (policy[field].length > 0) {
+    if (policy[field] !== null && policy[field].length > 0) {
       limitations.push({
         code,
         message: `${label} are not evaluated yet, so coverage cannot be estimated without risking a false result.`,
@@ -270,7 +277,8 @@ function findUnsupported(input: DentalCaseInput): Limitation[] {
     }
   }
   for (const p of input.procedures) {
-    if (policy.insurerRateBpsByCategory[p.category] === undefined) {
+    if (p.category !== null && policy.insurerRateBpsByCategory !== null
+      && policy.insurerRateBpsByCategory[p.category] === undefined) {
       limitations.push({
         code: 'CATEGORY_NOT_IN_POLICY',
         message: `The plan does not list a coverage rate for category "${p.category}".`,
@@ -282,7 +290,7 @@ function findUnsupported(input: DentalCaseInput): Limitation[] {
   return limitations;
 }
 
-function findMissing(input: DentalCaseInput): MissingFact[] {
+function findMissing(input: CaseCheckInput): MissingFact[] {
   const missing: MissingFact[] = [];
   if (input.coverageMode === 'unknown') {
     missing.push({
@@ -293,12 +301,26 @@ function findMissing(input: DentalCaseInput): MissingFact[] {
   }
   if (input.policy === null) {
     missing.push({ fieldPath: 'policy', code: 'POLICY_NOT_SUPPLIED', message: 'Plan coverage rules are needed.' });
+  } else {
+    const fields = [
+      'deductibleBeforeCoinsurance', 'allServicesCovered', 'rounding',
+      'waitingPeriods', 'exclusions', 'frequencyRestrictions',
+      'deductibleAppliesByCategory', 'insurerRateBpsByCategory', 'annualMaximumAppliesByCategory',
+    ] as const;
+    for (const field of fields) {
+      if (input.policy[field] === null) {
+        missing.push({ fieldPath: `policy.${field}`, code: 'VALUE_UNKNOWN', message: `The plan's ${field} rules are needed.` });
+      }
+    }
   }
   if (input.procedures.length === 0) {
     missing.push({ fieldPath: 'procedures', code: 'NO_PROCEDURES', message: 'Add at least one recommended procedure.' });
   }
   for (const p of input.procedures) {
     const path = `procedures.${p.id}`;
+    if (p.category === null) {
+      missing.push({ fieldPath: `${path}.category`, code: 'VALUE_UNKNOWN', message: 'The benefit category for this procedure under this plan is needed.' });
+    }
     const values = [
       ['providerChargeCents', 'The dentist’s charge for this procedure is needed.'],
       ['allowedCents', 'The plan’s allowed amount for this procedure is needed.'],
@@ -317,15 +339,25 @@ function findMissing(input: DentalCaseInput): MissingFact[] {
     if (p.proposedDate === null && p.dentistEarliestDate === null) {
       missing.push({ fieldPath: `${path}.proposedDate`, code: 'DATE_UNKNOWN', message: 'A planned treatment date is needed.' });
     }
-    if (input.policy !== null && input.policy.insurerRateBpsByCategory[p.category] !== undefined) {
-      if (input.policy.deductibleAppliesByCategory[p.category] === undefined) {
+    if (input.policy !== null && p.category !== null) {
+      const rates = input.policy.insurerRateBpsByCategory;
+      if (rates !== null && rates[p.category] === null) {
+        missing.push({
+          fieldPath: `policy.insurerRateBpsByCategory.${p.category}`,
+          code: 'POLICY_CATEGORY_RULE_MISSING',
+          message: `The insurer coverage rate for ${p.category} services is needed.`,
+        });
+      }
+      const deductibles = input.policy.deductibleAppliesByCategory;
+      if (deductibles !== null && deductibles[p.category] == null) {
         missing.push({
           fieldPath: `policy.deductibleAppliesByCategory.${p.category}`,
           code: 'POLICY_CATEGORY_RULE_MISSING',
           message: `Whether the deductible applies to ${p.category} services is needed.`,
         });
       }
-      if (input.policy.annualMaximumAppliesByCategory[p.category] === undefined) {
+      const maximums = input.policy.annualMaximumAppliesByCategory;
+      if (maximums !== null && maximums[p.category] == null) {
         missing.push({
           fieldPath: `policy.annualMaximumAppliesByCategory.${p.category}`,
           code: 'POLICY_CATEGORY_RULE_MISSING',
@@ -340,7 +372,7 @@ function findMissing(input: DentalCaseInput): MissingFact[] {
 }
 
 /** Kahn's algorithm, always taking the earliest-listed ready procedure. Returns null on a cycle. */
-function topologicalOrder(procedures: Procedure[]): string[] | null {
+function topologicalOrder(procedures: Pick<Procedure, 'id' | 'prerequisiteIds'>[]): string[] | null {
   const remaining = new Map(procedures.map((p) => [p.id, new Set(p.prerequisiteIds)]));
   const order: string[] = [];
   while (remaining.size > 0) {
