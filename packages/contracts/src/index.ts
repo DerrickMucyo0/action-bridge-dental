@@ -6,3 +6,4 @@ export * from './ui-blocks.js';
 export * from './job.js';
 export * from './strategy.js';
 export * from './plain-language.js';
+export * from './plan-comparison.js';
