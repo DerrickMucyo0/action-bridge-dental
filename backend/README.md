@@ -15,10 +15,30 @@ HTTP API for cases, estimates and scenarios. Handlers validate with `@actionbrid
 | `POST /v1/cases/{caseId}/estimates` | calculations | `{expectedRevision}` → 200 `estimated \| needs_information \| unsupported`; 409 stale; 422 contradictory |
 | `POST /v1/cases/{caseId}/scenarios` | calculations | Same statuses; baseline plus up to two permitted lower-cost alternatives |
 | `POST /v1/cases/{caseId}/coverage-comparison` | calculations | Insured estimate vs explicit cash quotes |
+| `POST /v1/cases/{caseId}/plan-comparison` | calculations | Two independent insurance plans for the stored treatment and schedule; read-only |
 | `POST /v1/cases/{caseId}/jobs` | jobs | `{expectedRevision, operation: 'interpret', input: {text}}` → 202 `{jobId}` |
 | `GET /v1/jobs/{jobId}` | jobs | Status, real stage events, `questions` or `resultBlocks` |
 | `POST /v1/jobs/{jobId}/answers` | jobs | Confirmations/answers → new case revision + follow-up job → 202 `{jobId}` |
 | `POST /v1/jobs/{jobId}/retry`, `/cancel` | jobs | Body `{}` |
+
+## Two-plan comparison
+
+`POST /v1/cases/{caseId}/plan-comparison` accepts the shared `PlanComparisonRequest` contract:
+`caseId`, `expectedRevision`, `currency`, `treatment`, `planA` and `planB`.
+The body case ID must match the URL, and the caller must own the current case revision.
+Shared procedure details must match the stored case. Schedule dates must equal each stored
+`proposedDate` (or `dentistEarliestDate` when no proposed date exists); confirm another schedule
+through the existing case update flow first. Unknown stored dates return 422 with field issues.
+The treatment's `sourceFacts` must match the stored shared procedure/currency sources, excluding
+plan-specific category, network, allowed amount, write-off and self-pay sources.
+
+Each candidate supplies its own policy, benefit years, procedure facts and sources. An incomplete
+original insurance policy does not block comparison of the candidates. Results use
+`PlanComparisonResult`, retain each plan's `estimated`, `needs_information` or `unsupported` state,
+and include `planBMinusPlanACents` only as a number when both estimates are complete and comparable
+(otherwise `null`). Positive means Plan B costs the patient more. Schema errors are 400,
+stale revisions 409, and contradictory inputs 422, using the existing error envelope.
+The endpoint does not update cases, save comparisons or append ledger events.
 
 ## Agent jobs (Phase 5, D-17)
 

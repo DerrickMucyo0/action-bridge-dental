@@ -258,6 +258,12 @@ Resources:
             ApiId: !Ref HttpApi
             Method: POST
             Path: /v1/cases/{caseId}/coverage-comparison
+        PlanComparison:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /v1/cases/{caseId}/plan-comparison
 
   UploadBucket:
     Type: AWS::S3::Bucket
