@@ -2920,6 +2920,57 @@ tfoot td {
   }
 }
 
+/* Two independent candidate plans share one read-only treatment snapshot. */
+.plan-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+.plan-comparison-grid > *,
+.comparison-plan-editor,
+.comparison-plan-editor fieldset {
+  min-width: 0;
+  min-inline-size: 0;
+}
+.comparison-plan-editor > legend {
+  padding: 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.comparison-plan-editor fieldset {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.comparison-plan-editor fieldset > legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+.plan-comparison-page .notice,
+.plan-comparison-results .notice,
+.comparison-plan-editor label,
+.plan-comparison-results h3,
+.plan-comparison-results li {
+  overflow-wrap: anywhere;
+}
+.plan-comparison-results {
+  margin-top: 12px;
+}
+.plan-comparison-results .value-row {
+  flex-wrap: wrap;
+}
+@media (max-width: 1050px) {
+  .plan-comparison-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .comparison-plan-editor.card {
+    padding: 18px 14px;
+  }
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

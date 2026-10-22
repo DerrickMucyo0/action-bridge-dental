@@ -34,6 +34,7 @@ const pages: [string, string][] = [
   ['/facts', 'Review your information'],
   ['/questions', 'A few details'],
   ['/options', 'Your dental options'],
+  ['/plan-comparison', 'Compare insurance plans'],
   ['/self-pay', 'Your self-pay quote'],
   ['/details', 'Plan details'],
   ['/review', 'Review and save'],

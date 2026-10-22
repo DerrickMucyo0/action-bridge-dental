@@ -18,6 +18,7 @@ import { AssistantPage } from './features/assistant/assistant-page';
 import { FactsPage } from './features/case/facts-page';
 import { QuestionsPage } from './features/case/questions-page';
 import { OptionsPage } from './features/options/options-page';
+import { PlanComparisonPage } from './features/plan-comparison/plan-comparison-page';
 import { SelfPayPage } from './features/options/self-pay';
 import { DetailsPage } from './features/plan/details-page';
 import { ReviewPage, SavedPage } from './features/saved/saved-pages';
@@ -48,6 +49,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               element={<Navigate to="/options" replace />}
             />
             <Route path="options" element={<OptionsPage />} />
+            <Route path="plan-comparison" element={<PlanComparisonPage />} />
             <Route path="self-pay" element={<SelfPayPage />} />
             <Route path="details" element={<DetailsPage />} />
             <Route path="review" element={<ReviewPage />} />

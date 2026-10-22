@@ -118,13 +118,21 @@ export function FactsPage() {
         title="Here is what we'll use"
         description="Check the treatment, benefits and dates. You can correct any detail."
         actions={
-          <Button
-            variant="secondary"
-            icon={FileText}
-            onClick={() => setSources(true)}
-          >
-            View sources
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/plan-comparison')}
+            >
+              Compare insurance plans
+            </Button>
+            <Button
+              variant="secondary"
+              icon={FileText}
+              onClick={() => setSources(true)}
+            >
+              View sources
+            </Button>
+          </>
         }
       />
       <div className="fact-layout">
