@@ -1,17 +1,19 @@
 import type { Page, Route } from '@playwright/test';
 import {
   compareCoverage,
+  comparePlans,
   compareSchedules,
   estimateCase,
 } from '@actionbridge/benefits-engine';
-import type {
-  AgentJobView,
-  DentalCase,
-  DentalCaseInput,
-  LedgerEvent,
-  SavedStrategy,
-  SourceFact,
-  UiBlock,
+import {
+  PlanComparisonRequestSchema,
+  type AgentJobView,
+  type DentalCase,
+  type DentalCaseInput,
+  type LedgerEvent,
+  type SavedStrategy,
+  type SourceFact,
+  type UiBlock,
 } from '@actionbridge/contracts';
 import fixture from '../../docs/fixtures/dental-regression.json' with { type: 'json' };
 
@@ -183,6 +185,39 @@ export async function mockBackend(
       return route.fulfill({
         json: { caseId: current.caseId, caseRevision: next.caseRevision },
       });
+    }
+    if (
+      method === 'POST' &&
+      (m = path.match(/^\/v1\/cases\/([^/]+)\/plan-comparison$/))
+    ) {
+      const current = state.cases.get(m[1]!);
+      if (!current) return error(route, 404, 'NOT_FOUND', 'Case not found.');
+      const parsed = PlanComparisonRequestSchema.safeParse(body);
+      if (!parsed.success || parsed.data.caseId !== current.caseId)
+        return error(
+          route,
+          400,
+          'BAD_REQUEST',
+          'Review the comparison inputs.',
+        );
+      if (parsed.data.expectedRevision !== current.caseRevision)
+        return error(route, 409, 'REVISION_CONFLICT', 'This case changed.');
+      // Test-only transport: run the production engine in Node, never in the browser.
+      const result = comparePlans(parsed.data);
+      if ('status' in result && result.status === 'invalid')
+        return route.fulfill({
+          status: 422,
+          json: {
+            error: {
+              code: 'INCONSISTENT_INPUT',
+              message: 'Some comparison values contradict each other.',
+              retryable: false,
+              requestId: 'req-test',
+              issues: result.issues,
+            },
+          },
+        });
+      return route.fulfill({ json: result });
     }
     if (
       (m = path.match(

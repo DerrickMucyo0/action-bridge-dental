@@ -8,6 +8,7 @@ import {
   ErrorEnvelopeSchema,
   EstimateResultSchema,
   LedgerPageSchema,
+  PlanComparisonResultSchema,
   RETRY_POLICY,
   retryDelayMs,
   SaveStrategyResponseSchema,
@@ -21,6 +22,7 @@ import {
   type ErrorIssue,
   type JobAnswersRequest,
   type PatchCaseRequest,
+  type PlanComparisonRequest,
   type SaveStrategyRequest,
 } from '@actionbridge/contracts';
 import type { z } from 'zod';
@@ -215,6 +217,13 @@ export function createApiClient({
         `${casePath(caseId)}/coverage-comparison`,
         CoverageComparisonSchema,
         { expectedRevision },
+      ),
+    planComparison: (request: PlanComparisonRequest) =>
+      once(
+        'POST',
+        `${casePath(request.caseId)}/plan-comparison`,
+        PlanComparisonResultSchema,
+        request,
       ),
     /** Create the idempotency key once per Save action and reuse it for retries of that action. */
     saveStrategy: (

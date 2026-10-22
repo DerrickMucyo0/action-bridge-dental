@@ -248,7 +248,7 @@ test('two-plan form shows shared treatment and keeps unknown insurance facts ind
   ).toBe(false);
 });
 
-test('form validates names and malformed amounts, prepares unknowns without a live comparison or save', async ({
+test('form validates names and malformed amounts, sends unknowns without editing or saving the case', async ({
   page,
 }) => {
   const api = await openForm(page);
@@ -272,22 +272,18 @@ test('form validates names and malformed amounts, prepares unknowns without a li
     b.getByLabel('Crown · Allowed amount', { exact: true }),
   ).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByRole('alert').first()).toBeVisible();
-  await expect(
-    page.getByText(
-      'Your comparison details are ready. Cost estimates are not available yet.',
-    ),
-  ).toHaveCount(0);
+  expect(api.requests.slice(requestsBefore)).toEqual([]);
   await b.getByLabel('Crown · Allowed amount', { exact: true }).fill('');
   await page
     .getByRole('button', { name: 'Compare plans', exact: true })
     .click();
   await expect(
-    page.getByText(
-      'Your comparison details are ready. Cost estimates are not available yet.',
-    ),
-  ).toBeVisible();
-  // No inputs are sent, no case patch, no estimate request, and no comparison is saved in Ticket 08.
-  expect(api.requests.slice(requestsBefore)).toEqual([]);
+    page.getByText('Needs information', { exact: true }),
+  ).toHaveCount(2);
+  const requests = api.requests.slice(requestsBefore);
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatchObject({ method: 'POST' });
+  expect(requests[0]!.path).toMatch(/\/plan-comparison$/);
   await expect(
     page.getByText('Estimated patient cost', { exact: true }),
   ).toHaveCount(0);
@@ -295,11 +291,9 @@ test('form validates names and malformed amounts, prepares unknowns without a li
     .getByLabel('Plan name', { exact: true })
     .fill('Edited fictional Beta');
   await expect(
-    page.getByText(
-      'Your comparison details are ready. Cost estimates are not available yet.',
-    ),
+    page.getByText('Needs information', { exact: true }),
   ).toHaveCount(0);
-  expect(api.requests.slice(requestsBefore)).toEqual([]);
+  expect(api.requests.slice(requestsBefore)).toEqual(requests);
 });
 
 test('benefit periods start without invented calendar dates or balances', async ({

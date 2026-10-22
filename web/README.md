@@ -37,6 +37,14 @@ Landing page at `/` for signed-out visitors → **Sign in** (`/sign-in`; returns
 - **Documents and photos:** PDF, JPEG or PNG, one page each, up to 5 MB. Files go straight to private storage and are deleted after the server reads them.
 - **Sessions:** the access token stays in memory. The refresh token and email are kept in `sessionStorage` (this tab only) so a reload doesn't sign you out. Nothing goes to `localStorage` except the IDs of cases you opened and a display-name preference.
 
+### Compare two insurance plans
+
+Open a case, review its facts, then choose **Compare insurance plans** (`/plan-comparison`). Enter Plan A and Plan B independently; **Use current plan for Plan A** explicitly imports only that plan. Compare sends the selected case ID, revision, unchanged treatment/schedule and candidate plan facts to `POST /v1/cases/{caseId}/plan-comparison` through the existing authenticated client. Results come from the API; this screen does not save comparisons. Editing either plan clears results. A stale revision requires **Reload treatment**, which clears the drafts so you can review the updated treatment before comparing again.
+
+For manual testing, the configured HTTPS API must already provide that endpoint and accept the existing Cognito login and browser origin. Use fictional cases only. `npm run dev:api` is an HTTP server with demo-header authentication and is incompatible with this web client's HTTPS/Cognito configuration; do not disable authentication to connect them. No deployment or live AWS verification is part of this integration.
+
+Focused offline browser checks (API and Cognito mocked only in tests): build shared packages with `npm run build` at the root, then run `npm test -- plan-comparison-api.spec.ts plan-comparison.spec.ts` in `web/`. These require an existing Playwright Chromium installation. Run `npm run typecheck` and `npm run build` in `web/` for TypeScript and production-build validation.
+
 ## Code layout
 
 - `src/config.ts`: public settings.

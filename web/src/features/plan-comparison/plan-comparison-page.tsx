@@ -28,6 +28,7 @@ import {
   type ComparisonViewState,
 } from './comparison-results';
 import { PlanEditor } from './plan-editor';
+import { usePlanComparison } from './use-plan-comparison';
 
 export function PlanComparisonPage() {
   const { record, loading, error, reload } = useCase();
@@ -56,20 +57,45 @@ export function PlanComparisonPage() {
       </div>
     );
   return (
-    <ComparisonWorkspace
+    <ConnectedComparisonWorkspace
       key={`${record.caseId}@${record.caseRevision}`}
       record={record}
+      onReload={() => void reload()}
+    />
+  );
+}
+
+function ConnectedComparisonWorkspace({
+  record,
+  onReload,
+}: {
+  record: DentalCase;
+  onReload: () => void;
+}) {
+  const { viewState, reloadRequired, compare, clear, retry } =
+    usePlanComparison();
+  return (
+    <ComparisonWorkspace
+      record={record}
+      onCompare={compare}
+      onDraftChange={clear}
+      viewState={viewState}
+      onRetry={retry}
+      reloadRequired={reloadRequired}
+      onReload={onReload}
     />
   );
 }
 
 export interface ComparisonWorkspaceProps {
   record: DentalCase;
-  /** Ticket 09 supplies this callback and a server-result state. No transport is implemented here. */
+  /** The caller supplies transport; drafts never write to the source case. */
   onCompare?: (request: PlanComparisonRequest) => void;
   onDraftChange?: () => void;
   viewState?: ComparisonViewState;
   onRetry?: () => void;
+  reloadRequired?: boolean;
+  onReload?: () => void;
 }
 
 /** Drafts last for this screen and source revision; editing never updates the current case. */
@@ -79,6 +105,8 @@ export function ComparisonWorkspace({
   onDraftChange,
   viewState = { status: 'idle' },
   onRetry,
+  reloadRequired = false,
+  onReload,
 }: ComparisonWorkspaceProps) {
   const [planA, setPlanA] = useState(() =>
     blankComparisonPlan('plan-a', record),
@@ -90,24 +118,23 @@ export function ComparisonWorkspace({
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState('');
   const [prepared, setPrepared] = useState<PlanComparisonRequest | null>(null);
-  const [showState, setShowState] = useState(false);
   const navigate = useNavigate();
-  const busy = showState && viewState.status === 'loading';
+  const busy = viewState.status === 'loading';
   const change = (side: 'A' | 'B', value: ComparisonPlan) => {
     (side === 'A' ? setPlanA : setPlanB)(value);
     setPrepared(null);
-    setShowState(false);
     setMessage('');
     onDraftChange?.();
   };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (busy || reloadRequired) return;
     setSubmitted(true);
     const prepared = prepareComparison(record, planA, planB);
     if (!prepared.ok) {
       setMessage(prepared.message);
       setPrepared(null);
-      setShowState(false);
+      onDraftChange?.();
       const invalid =
         event.currentTarget.querySelector<HTMLElement>(':invalid');
       invalid?.focus();
@@ -123,7 +150,6 @@ export function ComparisonWorkspace({
     }
     setMessage('');
     setPrepared(prepared.request);
-    setShowState(true);
     onCompare?.(prepared.request);
   };
   return (
@@ -145,8 +171,8 @@ export function ComparisonWorkspace({
       <CommonTreatment record={record} />
       <Notice>
         Enter two plan configurations. Blank insurance amounts mean unknown,
-        never zero. Cost estimates are not available yet. Changing a candidate
-        plan does not edit your current case.
+        never zero. Compare to request estimates from the service. Changing a
+        candidate plan does not edit your current case.
       </Notice>
       <form
         noValidate
@@ -181,21 +207,16 @@ export function ComparisonWorkspace({
             Treatment costs only. This does not enroll you in insurance or
             guarantee insurer payment.
           </p>
-          <Button type="submit" busy={busy}>
+          <Button type="submit" busy={busy} disabled={reloadRequired}>
             Compare plans
           </Button>
         </div>
       </form>
-      {prepared && !onCompare && (
-        <Notice>
-          Your comparison details are ready. Cost estimates are not available
-          yet.
-        </Notice>
-      )}
       <ComparisonResults
-        state={showState ? viewState : { status: 'idle' }}
+        state={viewState}
         request={prepared}
         onRetry={onRetry}
+        onReload={reloadRequired ? onReload : undefined}
       />
     </div>
   );

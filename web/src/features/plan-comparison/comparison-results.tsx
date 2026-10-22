@@ -2,6 +2,7 @@ import {
   PlanComparisonResultSchema,
   type ComparedPlan,
   type EstimatedResult,
+  type ErrorIssue,
   type PlanComparisonRequest,
   type PlanComparisonResult,
   type PlanComparisonTreatment,
@@ -25,6 +26,7 @@ export type ComparisonViewState =
       message: string;
       requestId?: string;
       retryable?: boolean;
+      issues?: ErrorIssue[];
     }
   | { status: 'ready'; result: PlanComparisonResult };
 
@@ -32,6 +34,7 @@ export type ComparisonResultsProps = {
   state: ComparisonViewState;
   request: PlanComparisonRequest | null;
   onRetry?: () => void;
+  onReload?: () => void;
 };
 
 /** Renders supplied engine results only; API integration belongs to the caller. */
@@ -39,6 +42,7 @@ export function ComparisonResults({
   state,
   request,
   onRetry,
+  onReload,
 }: ComparisonResultsProps) {
   const headingId = useId();
   const checked =
@@ -69,12 +73,26 @@ export function ComparisonResults({
         <Notice tone="danger">
           <strong>The comparison could not be loaded</strong>
           <p>{state.message}</p>
+          {state.issues && state.issues.length > 0 && (
+            <ul>
+              {state.issues.map((issue, index) => (
+                <li key={`${issue.fieldPath}-${index}`}>
+                  <strong>{issueLabel(issue, request)}</strong>: {issue.message}
+                </li>
+              ))}
+            </ul>
+          )}
           {state.requestId && (
             <p className="small">Reference: {state.requestId}</p>
           )}
           {onRetry && state.retryable !== false && (
             <Button variant="secondary" onClick={onRetry}>
               Retry comparison
+            </Button>
+          )}
+          {onReload && (
+            <Button variant="secondary" onClick={onReload}>
+              Reload treatment
             </Button>
           )}
         </Notice>
@@ -398,6 +416,20 @@ function canonical(value: unknown): unknown {
     );
   }
   return value;
+}
+
+function issueLabel(
+  issue: ErrorIssue,
+  request: PlanComparisonRequest | null,
+): string {
+  const path = issue.fieldPath;
+  if (!path) return 'Comparison';
+  const side = path.startsWith('planA.')
+    ? 'Plan A · '
+    : path.startsWith('planB.')
+      ? 'Plan B · '
+      : '';
+  return `${side}${request ? factLabel(path, request.treatment) : path}`;
 }
 
 function factLabel(path: string, treatment: PlanComparisonTreatment): string {
