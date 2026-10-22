@@ -8,6 +8,8 @@ import { ledgerRoutes } from '../features/ledger/api/ledger-routes.js';
 import { scheduleRoutes } from '../features/schedules/schedule-routes.js';
 import { strategyRoutes } from '../features/strategies/api/strategy-routes.js';
 import { StrategyService } from '../features/strategies/application/strategy-service.js';
+import { planComparisonRoutes } from '../features/plan-comparisons/api/plan-comparison-routes.js';
+import { SavedPlanComparisonService } from '../features/plan-comparisons/application/saved-plan-comparison-service.js';
 import { createRouter, type HttpEvent } from '../shared/http.js';
 import { InMemoryStore } from '../shared/in-memory-store.js';
 
@@ -20,6 +22,7 @@ const store = new InMemoryStore();
 const clock = { now: () => new Date(), newId: randomUUID, retentionDays: null };
 const cases = new CaseService({ repository: store, ...clock });
 const strategies = new StrategyService({ cases, strategies: store, ...clock });
+const comparisons = new SavedPlanComparisonService({ cases, comparisons: store, ...clock });
 const authMode = 'demo' as const;
 const deps = { cases, authMode };
 const routes = {
@@ -28,6 +31,7 @@ const routes = {
   ...estimateRoutes(deps),
   ...scheduleRoutes(deps),
   ...strategyRoutes({ strategies, authMode }),
+  ...planComparisonRoutes({ comparisons, authMode }),
   ...ledgerRoutes({ cases, ledger: store, authMode }),
 };
 const router = createRouter(routes);

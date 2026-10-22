@@ -370,7 +370,7 @@ function Difference({ result }: { result: PlanComparisonResult }) {
   );
 }
 
-function matchesRequest(
+export function matchesRequest(
   result: PlanComparisonResult,
   request: PlanComparisonRequest,
 ): boolean {
@@ -383,6 +383,30 @@ function matchesRequest(
     result.planB.planId === request.planB.planId &&
     result.planB.label === request.planB.label &&
     treatmentKey(result.treatment) === treatmentKey(request.treatment)
+  );
+}
+
+/** Saved responses must echo each plan's actual facts, not just the same IDs and names. */
+export function sameComparisonInputs(
+  left: PlanComparisonRequest,
+  right: PlanComparisonRequest,
+): boolean {
+  const planKey = (plan: PlanComparisonRequest['planA']) =>
+    JSON.stringify(
+      canonical({
+        ...plan,
+        sourceFacts: [...plan.sourceFacts].sort((a, b) =>
+          a.id.localeCompare(b.id),
+        ),
+      }),
+    );
+  return (
+    left.caseId === right.caseId &&
+    left.expectedRevision === right.expectedRevision &&
+    left.currency === right.currency &&
+    treatmentKey(left.treatment) === treatmentKey(right.treatment) &&
+    planKey(left.planA) === planKey(right.planA) &&
+    planKey(left.planB) === planKey(right.planB)
   );
 }
 

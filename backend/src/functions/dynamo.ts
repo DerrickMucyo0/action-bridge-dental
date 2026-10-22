@@ -6,6 +6,8 @@ import { DynamoCaseRepository } from '../features/cases/infrastructure/dynamo-ca
 import { DynamoLedgerReader } from '../features/ledger/infrastructure/dynamo-ledger.js';
 import { StrategyService } from '../features/strategies/application/strategy-service.js';
 import { DynamoStrategyRepository } from '../features/strategies/infrastructure/dynamo-strategy-repository.js';
+import { SavedPlanComparisonService } from '../features/plan-comparisons/application/saved-plan-comparison-service.js';
+import { DynamoPlanComparisonRepository } from '../features/plan-comparisons/infrastructure/dynamo-plan-comparison-repository.js';
 import { requireTableName, type AppConfig } from '../shared/config.js';
 
 /** Services wired to DynamoDB. Kept apart from compose.ts so the health bundle has no AWS SDK. */
@@ -17,6 +19,7 @@ export function dynamoServices(config: AppConfig) {
   return {
     cases,
     strategies: new StrategyService({ cases, strategies: new DynamoStrategyRepository(client, table), ...clock }),
+    comparisons: new SavedPlanComparisonService({ cases, comparisons: new DynamoPlanComparisonRepository(client, table), ...clock }),
     ledger: new DynamoLedgerReader(client, table),
   };
 }

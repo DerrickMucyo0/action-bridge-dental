@@ -16,6 +16,9 @@ HTTP API for cases, estimates and scenarios. Handlers validate with `@actionbrid
 | `POST /v1/cases/{caseId}/scenarios` | calculations | Same statuses; baseline plus up to two permitted lower-cost alternatives |
 | `POST /v1/cases/{caseId}/coverage-comparison` | calculations | Insured estimate vs explicit cash quotes |
 | `POST /v1/cases/{caseId}/plan-comparison` | calculations | Two independent insurance plans for the stored treatment and schedule; read-only |
+| `POST /v1/cases/{caseId}/plan-comparisons` | cases | `Idempotency-Key` + `{comparison: PlanComparisonRequest, consent: true}` → 201 saved / 200 replay |
+| `GET /v1/cases/{caseId}/plan-comparisons?expectedRevision=N` | cases | Up to 20 newest current-revision comparison summaries; no treatment or costs |
+| `GET /v1/cases/{caseId}/plan-comparisons/{comparisonId}?expectedRevision=N` | cases | Owner's saved inputs and server-verified results for the current revision |
 | `POST /v1/cases/{caseId}/jobs` | jobs | `{expectedRevision, operation: 'interpret', input: {text}}` → 202 `{jobId}` |
 | `GET /v1/jobs/{jobId}` | jobs | Status, real stage events, `questions` or `resultBlocks` |
 | `POST /v1/jobs/{jobId}/answers` | jobs | Confirmations/answers → new case revision + follow-up job → 202 `{jobId}` |
@@ -39,6 +42,28 @@ and include `planBMinusPlanACents` only as a number when both estimates are comp
 (otherwise `null`). Positive means Plan B costs the patient more. Schema errors are 400,
 stale revisions 409, and contradictory inputs 422, using the existing error envelope.
 The endpoint does not update cases, save comparisons or append ledger events.
+
+### Saving and reopening
+
+The plural `/plan-comparisons` routes save and retrieve immutable snapshots. Saving accepts inputs
+and explicit consent only; client-supplied results, premiums and owner fields are rejected.
+The existing comparison service verifies the stored treatment/revision and recomputes both plans.
+Incomplete and unsupported results may be saved; their difference stays `null`. Reopening verifies
+the snapshot against the current case and engine again. A changed revision or calculation returns
+409; older snapshots are excluded from current-revision lists and cannot be reopened as current.
+
+All three routes use the existing Cognito owner resolution and hide other users' cases as 404.
+They run on the existing cases Lambda/table/permissions. A save transaction checks the current case
+revision, reserves a namespaced idempotency key, and writes one snapshot. Retrying the same inputs
+with the same key returns the same snapshot; changing inputs with that key returns 409.
+Idempotency records store only a SHA-256 fingerprint and snapshot reference. Lists return metadata
+only. Snapshots use the configured retention TTL and contain comparison inputs/sources/results,
+IDs and a timestamp, without a copy of the user's profile or authentication tokens.
+Saving does not update the case, reported benefit usage, single-plan strategies or the case ledger.
+
+Local route/service and Dynamo command tests use fictional fixtures without AWS. The local HTTP
+demo-auth server remains incompatible with the web client's HTTPS/Cognito configuration; browser
+tests mock transport only. No live DynamoDB/Cognito verification or deployment is implied.
 
 ## Agent jobs (Phase 5, D-17)
 

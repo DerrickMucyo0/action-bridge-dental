@@ -7,3 +7,4 @@ export * from './job.js';
 export * from './strategy.js';
 export * from './plain-language.js';
 export * from './plan-comparison.js';
+export * from './saved-plan-comparison.js';

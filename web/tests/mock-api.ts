@@ -7,11 +7,13 @@ import {
 } from '@actionbridge/benefits-engine';
 import {
   PlanComparisonRequestSchema,
+  SavePlanComparisonRequestSchema,
   type AgentJobView,
   type DentalCase,
   type DentalCaseInput,
   type LedgerEvent,
   type SavedStrategy,
+  type SavedPlanComparison,
   type SourceFact,
   type UiBlock,
 } from '@actionbridge/contracts';
@@ -25,6 +27,7 @@ import fixture from '../../docs/fixtures/dental-regression.json' with { type: 'j
 export interface MockApi {
   cases: Map<string, DentalCase>;
   strategies: Map<string, SavedStrategy[]>;
+  comparisons: Map<string, SavedPlanComparison[]>;
   requests: {
     method: string;
     path: string;
@@ -33,6 +36,8 @@ export interface MockApi {
   }[];
   /** Make the next strategy save fail once with a retryable error. */
   failNextSave: boolean;
+  /** Lose the next comparison-save response after storing, to exercise safe replay. */
+  failNextComparisonSave: boolean;
 }
 
 const now = () => new Date().toISOString();
@@ -58,8 +63,10 @@ export async function mockBackend(
   const state: MockApi = {
     cases: new Map(),
     strategies: new Map(),
+    comparisons: new Map(),
     requests: [],
     failNextSave: false,
+    failNextComparisonSave: false,
   };
   const ledger = new Map<string, LedgerEvent[]>();
   const jobs = new Map<string, AgentJobView & { proposeFrom?: string }>();
@@ -184,6 +191,103 @@ export async function mockBackend(
       record(current.caseId, 'case_updated', next.caseRevision);
       return route.fulfill({
         json: { caseId: current.caseId, caseRevision: next.caseRevision },
+      });
+    }
+    if (
+      (m = path.match(/^\/v1\/cases\/([^/]+)\/plan-comparisons(?:\/([^/]+))?$/))
+    ) {
+      const caseId = m[1]!;
+      const current = state.cases.get(caseId);
+      if (!current) return error(route, 404, 'NOT_FOUND', 'Case not found.');
+      if (method === 'GET') {
+        if (
+          Number(url.searchParams.get('expectedRevision')) !==
+          current.caseRevision
+        )
+          return error(route, 409, 'REVISION_CONFLICT', 'This case changed.');
+        const saved = (state.comparisons.get(caseId) ?? []).filter(
+          (value) => value.caseRevision === current.caseRevision,
+        );
+        if (m[2]) {
+          const value = saved.find(
+            (comparison) => comparison.comparisonId === m![2],
+          );
+          return value
+            ? route.fulfill({ json: value })
+            : error(route, 404, 'NOT_FOUND', 'Comparison not found.');
+        }
+        return route.fulfill({
+          json: {
+            caseId,
+            caseRevision: current.caseRevision,
+            comparisons: [...saved]
+              .reverse()
+              .slice(0, 20)
+              .map((value) => ({
+                comparisonId: value.comparisonId,
+                caseId: value.caseId,
+                caseRevision: value.caseRevision,
+                savedAt: value.savedAt,
+                planALabel: value.request.planA.label,
+                planBLabel: value.request.planB.label,
+                planAStatus: value.result.planA.estimate.status,
+                planBStatus: value.result.planB.estimate.status,
+              })),
+          },
+        });
+      }
+      const parsed = SavePlanComparisonRequestSchema.safeParse(body);
+      const key = request.headers()['idempotency-key'];
+      if (!parsed.success || parsed.data.comparison.caseId !== caseId || !key)
+        return error(
+          route,
+          400,
+          'BAD_REQUEST',
+          'Review the comparison save request.',
+        );
+      if (parsed.data.comparison.expectedRevision !== current.caseRevision)
+        return error(route, 409, 'REVISION_CONFLICT', 'This case changed.');
+      const comparisonId = `pc-${key}`;
+      const existing = (state.comparisons.get(caseId) ?? []).find(
+        (value) => value.comparisonId === comparisonId,
+      );
+      if (existing)
+        return route.fulfill({
+          json: { comparison: existing, replayed: true },
+        });
+      const result = comparePlans(parsed.data.comparison);
+      if ('status' in result)
+        return error(
+          route,
+          422,
+          'INCONSISTENT_INPUT',
+          'Review the plan facts.',
+        );
+      const snapshot: SavedPlanComparison = {
+        comparisonId,
+        caseId,
+        caseRevision: current.caseRevision,
+        request: parsed.data.comparison,
+        result,
+        savedAt: now(),
+      };
+      state.comparisons.set(caseId, [
+        ...(state.comparisons.get(caseId) ?? []),
+        snapshot,
+      ]);
+      if (state.failNextComparisonSave) {
+        state.failNextComparisonSave = false;
+        return error(
+          route,
+          503,
+          'UPSTREAM_UNAVAILABLE',
+          'The save response was interrupted. Retry safely.',
+          true,
+        );
+      }
+      return route.fulfill({
+        status: 201,
+        json: { comparison: snapshot, replayed: false },
       });
     }
     if (

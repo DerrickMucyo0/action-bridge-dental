@@ -8,6 +8,8 @@ import { ledgerRoutes } from '../src/features/ledger/api/ledger-routes.js';
 import { scheduleRoutes } from '../src/features/schedules/schedule-routes.js';
 import { strategyRoutes } from '../src/features/strategies/api/strategy-routes.js';
 import { StrategyService } from '../src/features/strategies/application/strategy-service.js';
+import { planComparisonRoutes } from '../src/features/plan-comparisons/api/plan-comparison-routes.js';
+import { SavedPlanComparisonService } from '../src/features/plan-comparisons/application/saved-plan-comparison-service.js';
 import type { AuthMode } from '../src/shared/auth.js';
 import { createRouter, type HttpEvent, type HttpResult } from '../src/shared/http.js';
 import { InMemoryStore } from '../src/shared/in-memory-store.js';
@@ -30,6 +32,7 @@ export function fixtureCreateRequest(): CreateCaseRequest {
 
 export interface CallOptions {
   caseId?: string;
+  comparisonId?: string;
   body?: unknown;
   user?: string | null;
   claims?: Record<string, unknown>;
@@ -56,6 +59,7 @@ export function createTestApi(options: { authMode?: AuthMode; store?: InMemorySt
   };
   const cases = new CaseService({ repository: store, ...clock });
   const strategies = new StrategyService({ cases, strategies: store, ...clock });
+  const comparisons = new SavedPlanComparisonService({ cases, comparisons: store, ...clock });
   const authMode = options.authMode ?? 'demo';
   const deps = { cases, authMode };
   const router = createRouter({
@@ -64,15 +68,16 @@ export function createTestApi(options: { authMode?: AuthMode; store?: InMemorySt
     ...estimateRoutes(deps),
     ...scheduleRoutes(deps),
     ...strategyRoutes({ strategies, authMode }),
+    ...planComparisonRoutes({ comparisons, authMode }),
     ...ledgerRoutes({ cases, ledger: store, authMode }),
   });
 
   return {
     store,
-    async call(routeKey, { caseId, body, user = MAYA, claims, rawBody, headers = {}, query } = {}) {
+    async call(routeKey, { caseId, comparisonId, body, user = MAYA, claims, rawBody, headers = {}, query } = {}) {
       const event: HttpEvent = {
         routeKey,
-        pathParameters: caseId === undefined ? {} : { caseId },
+        pathParameters: { ...(caseId === undefined ? {} : { caseId }), ...(comparisonId === undefined ? {} : { comparisonId }) },
         headers: { ...(user === null ? {} : { 'x-demo-user-id': user }), ...headers },
         ...(query ? { queryStringParameters: query } : {}),
         requestContext: {

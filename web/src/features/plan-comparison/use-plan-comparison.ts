@@ -1,4 +1,7 @@
-import type { PlanComparisonRequest } from '@actionbridge/contracts';
+import type {
+  PlanComparisonRequest,
+  PlanComparisonResult,
+} from '@actionbridge/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asApiError } from '../../services/api';
 import { useApi } from '../../state/auth';
@@ -78,5 +81,16 @@ export function usePlanComparison() {
     if (lastRequest.current) void compare(lastRequest.current);
   }, [compare]);
 
-  return { viewState, reloadRequired, compare, clear, retry };
+  const restore = useCallback(
+    (request: PlanComparisonRequest, result: PlanComparisonResult) => {
+      if (blocked.current) return;
+      generation.current++;
+      pending.current = false;
+      lastRequest.current = request;
+      setViewState({ status: 'ready', result });
+    },
+    [],
+  );
+
+  return { viewState, reloadRequired, compare, clear, retry, restore };
 }

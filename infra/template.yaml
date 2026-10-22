@@ -224,6 +224,24 @@ Resources:
             ApiId: !Ref HttpApi
             Method: GET
             Path: /v1/cases/{caseId}/strategies
+        SavePlanComparison:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /v1/cases/{caseId}/plan-comparisons
+        ListPlanComparisons:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /v1/cases/{caseId}/plan-comparisons
+        GetPlanComparison:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /v1/cases/{caseId}/plan-comparisons/{comparisonId}
 
   CalculationsFunction:
     Type: AWS::Serverless::Function

@@ -2,9 +2,10 @@ import type {
   ComparisonPlan,
   DentalCase,
   PlanComparisonRequest,
+  SavedPlanComparison,
 } from '@actionbridge/contracts';
 import { ClipboardList } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Badge,
@@ -25,10 +26,12 @@ import {
 } from './comparison-model';
 import {
   ComparisonResults,
+  matchesRequest,
   type ComparisonViewState,
 } from './comparison-results';
 import { PlanEditor } from './plan-editor';
 import { usePlanComparison } from './use-plan-comparison';
+import { SavedComparisons, useSavedComparisons } from './saved-comparisons';
 
 export function PlanComparisonPage() {
   const { record, loading, error, reload } = useCase();
@@ -72,17 +75,54 @@ function ConnectedComparisonWorkspace({
   record: DentalCase;
   onReload: () => void;
 }) {
-  const { viewState, reloadRequired, compare, clear, retry } =
+  const { viewState, reloadRequired, compare, clear, retry, restore } =
     usePlanComparison();
+  const [opened, setOpened] = useState<SavedPlanComparison | null>(null);
+  const [workspaceVersion, setWorkspaceVersion] = useState(0);
+  const [activeRequest, setActiveRequest] =
+    useState<PlanComparisonRequest | null>(null);
+  const staleCase = useRef(false);
+  const saved = useSavedComparisons(record, (snapshot) => {
+    if (staleCase.current) return;
+    setOpened(snapshot);
+    setActiveRequest(snapshot.request);
+    setWorkspaceVersion((version) => version + 1);
+    restore(snapshot.request, snapshot.result);
+  });
+  staleCase.current = reloadRequired || saved.reloadRequired;
   return (
     <ComparisonWorkspace
+      key={workspaceVersion}
       record={record}
-      onCompare={compare}
-      onDraftChange={clear}
-      viewState={viewState}
+      initialRequest={opened?.request}
+      onCompare={(request) => {
+        saved.clear();
+        setActiveRequest(request);
+        void compare(request);
+      }}
+      onDraftChange={() => {
+        clear();
+        saved.clear();
+        setActiveRequest(null);
+      }}
+      viewState={saved.reloadRequired ? { status: 'idle' } : viewState}
       onRetry={retry}
-      reloadRequired={reloadRequired}
+      reloadRequired={reloadRequired || saved.reloadRequired}
       onReload={onReload}
+      savedControls={
+        <SavedComparisons
+          state={saved}
+          request={activeRequest}
+          canSave={
+            !staleCase.current &&
+            viewState.status === 'ready' &&
+            activeRequest !== null &&
+            matchesRequest(viewState.result, activeRequest)
+          }
+          reloadRequired={reloadRequired}
+          onReload={onReload}
+        />
+      }
     />
   );
 }
@@ -96,6 +136,8 @@ export interface ComparisonWorkspaceProps {
   onRetry?: () => void;
   reloadRequired?: boolean;
   onReload?: () => void;
+  initialRequest?: PlanComparisonRequest;
+  savedControls?: ReactNode;
 }
 
 /** Drafts last for this screen and source revision; editing never updates the current case. */
@@ -107,17 +149,21 @@ export function ComparisonWorkspace({
   onRetry,
   reloadRequired = false,
   onReload,
+  initialRequest,
+  savedControls,
 }: ComparisonWorkspaceProps) {
-  const [planA, setPlanA] = useState(() =>
-    blankComparisonPlan('plan-a', record),
+  const [planA, setPlanA] = useState(
+    () => initialRequest?.planA ?? blankComparisonPlan('plan-a', record),
   );
-  const [planB, setPlanB] = useState(() =>
-    blankComparisonPlan('plan-b', record),
+  const [planB, setPlanB] = useState(
+    () => initialRequest?.planB ?? blankComparisonPlan('plan-b', record),
   );
   const [importVersion, setImportVersion] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState('');
-  const [prepared, setPrepared] = useState<PlanComparisonRequest | null>(null);
+  const [prepared, setPrepared] = useState<PlanComparisonRequest | null>(
+    initialRequest ?? null,
+  );
   const navigate = useNavigate();
   const busy = viewState.status === 'loading';
   const change = (side: 'A' | 'B', value: ComparisonPlan) => {
@@ -218,6 +264,7 @@ export function ComparisonWorkspace({
         onRetry={onRetry}
         onReload={reloadRequired ? onReload : undefined}
       />
+      {savedControls}
     </div>
   );
 }

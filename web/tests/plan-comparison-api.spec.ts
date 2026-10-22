@@ -38,6 +38,11 @@ async function openComparison(page: Page) {
       level: 2,
     }),
   ).toBeVisible();
+  await expect(
+    page.getByText('No saved comparisons for this treatment version.', {
+      exact: true,
+    }),
+  ).toBeVisible();
   return api;
 }
 

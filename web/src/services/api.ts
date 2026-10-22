@@ -9,9 +9,12 @@ import {
   EstimateResultSchema,
   LedgerPageSchema,
   PlanComparisonResultSchema,
+  PlanComparisonListSchema,
   RETRY_POLICY,
   retryDelayMs,
   SaveStrategyResponseSchema,
+  SavePlanComparisonResponseSchema,
+  SavedPlanComparisonSchema,
   ScenarioComparisonResultSchema,
   SpeechResponseSchema,
   StrategyListSchema,
@@ -24,6 +27,7 @@ import {
   type PatchCaseRequest,
   type PlanComparisonRequest,
   type SaveStrategyRequest,
+  type SavePlanComparisonRequest,
 } from '@actionbridge/contracts';
 import type { z } from 'zod';
 
@@ -224,6 +228,32 @@ export function createApiClient({
         `${casePath(request.caseId)}/plan-comparison`,
         PlanComparisonResultSchema,
         request,
+      ),
+    savePlanComparison: (
+      caseId: string,
+      request: SavePlanComparisonRequest,
+      idempotencyKey: string,
+    ) =>
+      once(
+        'POST',
+        `${casePath(caseId)}/plan-comparisons`,
+        SavePlanComparisonResponseSchema,
+        request,
+        { 'idempotency-key': idempotencyKey },
+      ),
+    listPlanComparisons: (caseId: string, expectedRevision: number) =>
+      read(
+        `${casePath(caseId)}/plan-comparisons?expectedRevision=${expectedRevision}`,
+        PlanComparisonListSchema,
+      ),
+    getPlanComparison: (
+      caseId: string,
+      comparisonId: string,
+      expectedRevision: number,
+    ) =>
+      read(
+        `${casePath(caseId)}/plan-comparisons/${encodeURIComponent(comparisonId)}?expectedRevision=${expectedRevision}`,
+        SavedPlanComparisonSchema,
       ),
     /** Create the idempotency key once per Save action and reuse it for retries of that action. */
     saveStrategy: (
