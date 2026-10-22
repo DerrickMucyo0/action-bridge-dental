@@ -226,7 +226,7 @@ describe('two-plan result contracts', () => {
     expect(PlanComparisonResultSchema.safeParse(output).success).toBe(true);
   });
 
-  it.each<[string, (output: PlanComparisonResult, estimate: ReturnType<typeof estimate>) => void]>([
+  it.each<[string, (output: PlanComparisonResult, completeEstimate: ReturnType<typeof estimate>) => void]>([
     ['stale revision', (_o, e) => { e.caseRevision = 2; }],
     ['different engine', (_o, e) => { e.engineVersion = 'other-version'; }],
     ['different schedule', (_o, e) => { e.schedule[0]!.date = '2026-11-11'; }],
