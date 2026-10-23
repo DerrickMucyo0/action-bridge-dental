@@ -1,18 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { CognitoError } from '../../services/cognito';
 import { useAuth } from '../../state/auth';
+import { passwordValidationMessage } from './password-policy';
+import { PasswordRequirements } from './password-requirements';
 
 export type PublicMode = 'create' | 'verify' | 'forgot' | 'reset';
 type Field = 'email' | 'password' | 'confirmation' | 'code';
-export const PASSWORD_RULE =
-  'At least 12 characters (up to 256), with upper and lower case letters and a number, and no spaces.';
-const validPassword = (s: string) =>
-  s.length >= 12 &&
-  s.length <= 256 &&
-  !/\s/.test(s) &&
-  /[A-Z]/.test(s) &&
-  /[a-z]/.test(s) &&
-  /[0-9]/.test(s);
 const actions = {
   create: 'Create account',
   verify: 'Verify email',
@@ -129,9 +122,12 @@ export function PublicAccountForm({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (pending.current || !validateEmail()) return;
-    if ((mode === 'create' || mode === 'reset') && !validPassword(password)) {
-      setError({ message: PASSWORD_RULE, field: 'password' });
-      return;
+    if (mode === 'create' || mode === 'reset') {
+      const message = passwordValidationMessage(password);
+      if (message) {
+        setError({ message, field: 'password' });
+        return;
+      }
     }
     if ((mode === 'create' || mode === 'reset') && password !== confirmation) {
       setError({ message: 'Passwords must match.', field: 'confirmation' });
@@ -219,6 +215,7 @@ export function PublicAccountForm({
           inputMode={
             name === 'email' ? 'email' : name === 'code' ? 'numeric' : undefined
           }
+          minLength={hint ? 12 : undefined}
           maxLength={name === 'email' ? 254 : name === 'code' ? 2048 : 256}
           value={value}
           disabled={disabled}
@@ -238,9 +235,7 @@ export function PublicAccountForm({
           }
         />
         {hint && (
-          <span id="public-password-hint" className="si-hint">
-            {PASSWORD_RULE}
-          </span>
+          <PasswordRequirements id="public-password-hint" value={password} />
         )}
       </div>
     );

@@ -29,6 +29,16 @@ test('sign-in errors, first-sign-in password change, and session restore after r
   page,
 }) => {
   await mockBackend(page, { newPasswordFor: 'new@example.com' });
+  const passwordChallengeRequests: string[] = [];
+  page.on('request', (request) => {
+    if (
+      (request.headers()['x-amz-target'] ?? '').endsWith(
+        'RespondToAuthChallenge',
+      )
+    ) {
+      passwordChallengeRequests.push(request.postData() ?? '');
+    }
+  });
   // Signed out: the landing page at /, and sign-in for any app page.
   await page.goto('/');
   await expect(
@@ -52,12 +62,20 @@ test('sign-in errors, first-sign-in password change, and session restore after r
   await page.getByLabel('New password').fill('short');
   await page.getByRole('button', { name: 'Set password and continue' }).click();
   await expect(page.getByRole('alert')).toContainText('12 characters');
+  await page.getByLabel('New password').fill('MissingSpecialPassword42');
+  await page.getByLabel('Confirm password').fill('MissingSpecialPassword42');
+  await page.getByRole('button', { name: 'Set password and continue' }).click();
+  await expect(page.getByRole('alert')).toContainText(
+    /At least one special character/,
+  );
+  expect(passwordChallengeRequests).toEqual([]);
   await page.getByLabel('New password').fill('A-much-longer-Passw0rd');
   await page.getByLabel('Confirm password').fill('A-much-longer-Passw0rd');
   await page.getByRole('button', { name: 'Set password and continue' }).click();
   // Back to the page that was asked for before signing in.
   await expect(page).toHaveURL(/\/options$/);
   await expect(page.getByText('new@example.com')).toBeVisible();
+  expect(passwordChallengeRequests).toHaveLength(1);
 
   // Tokens never go to localStorage; the tab keeps its session across a reload.
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(

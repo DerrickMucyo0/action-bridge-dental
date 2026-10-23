@@ -1299,6 +1299,13 @@ html:has(.lp) {
   line-height: 1.5;
   color: var(--muted);
 }
+.si-password-requirements {
+  margin: 0;
+  padding-left: 20px;
+}
+.si-password-requirements li + li {
+  margin-top: 2px;
+}
 .si-link {
   background: none;
   border: 0;

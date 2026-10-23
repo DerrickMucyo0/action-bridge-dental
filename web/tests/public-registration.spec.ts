@@ -211,6 +211,169 @@ for (const invalid of [
   });
 }
 
+for (const invalid of [
+  {
+    name: 'too short',
+    value: 'Abcdefgh1!x',
+    requirement: /At least 12 characters/,
+  },
+  {
+    name: 'missing uppercase',
+    value: 'lowercase-password-42',
+    requirement: /At least one uppercase letter/,
+  },
+  {
+    name: 'missing lowercase',
+    value: 'UPPERCASE-PASSWORD-42',
+    requirement: /At least one lowercase letter/,
+  },
+  {
+    name: 'missing number',
+    value: 'Missing-Number-Password',
+    requirement: /At least one number/,
+  },
+  {
+    name: 'missing special character',
+    value: 'MissingSpecialPassword42',
+    requirement: /At least one special character/,
+  },
+  {
+    name: 'spaces',
+    value: 'Valid Password 42!',
+    requirement: /No spaces or whitespace/,
+  },
+  {
+    name: 'emoji instead of special character',
+    value: 'ValidPassword42🦷',
+    requirement: /At least one special character/,
+  },
+]) {
+  test(`registration blocks a password with ${invalid.name} before calling Cognito`, async ({
+    page,
+  }) => {
+    const backend = await registrationBackend(page);
+    await page.goto('/sign-in?mode=create');
+    await fillRegistration(page);
+    await page.getByLabel('Password', { exact: true }).fill(invalid.value);
+    await page
+      .getByLabel('Confirm password', { exact: true })
+      .fill(invalid.value);
+    const checklist = page.getByRole('list', { name: 'Password requirements' });
+    await expect(
+      checklist.getByRole('listitem').filter({ hasText: invalid.requirement }),
+    ).toContainText('Missing:');
+    await page
+      .getByRole('button', { name: 'Create account', exact: true })
+      .click();
+    await expect(page.getByRole('alert')).toContainText(invalid.requirement);
+    await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(backend.calls).toEqual([]);
+    expect(backend.api.requests).toEqual([]);
+  });
+}
+
+test('registration explains every password requirement and updates missing requirements while typing', async ({
+  page,
+}) => {
+  const backend = await registrationBackend(page);
+  await page.goto('/sign-in?mode=create');
+  const checklist = page.getByRole('list', { name: 'Password requirements' });
+  await expect(checklist.getByRole('listitem')).toHaveCount(7);
+  for (const requirement of [
+    /At least 12 characters/,
+    /No more than 256 characters/,
+    /At least one uppercase letter/,
+    /At least one lowercase letter/,
+    /At least one number/,
+    /At least one special character/,
+    /No spaces or whitespace/,
+  ]) {
+    await expect(
+      checklist.getByRole('listitem').filter({ hasText: requirement }),
+    ).toContainText('Required:');
+  }
+  await page.getByLabel('Password', { exact: true }).fill('ValidPassword42');
+  await expect(
+    checklist
+      .getByRole('listitem')
+      .filter({ hasText: /At least one special character/ }),
+  ).toContainText('Missing:');
+  await expect(
+    checklist
+      .getByRole('listitem')
+      .filter({ hasText: /At least 12 characters/ }),
+  ).toContainText('Met:');
+  await page.getByLabel('Password', { exact: true }).fill('ValidPassword42!');
+  await expect(
+    checklist.getByRole('listitem').filter({ hasText: /^Met:/ }),
+  ).toHaveCount(7);
+  await expect(checklist).not.toContainText('Missing:');
+  expect(backend.calls).toEqual([]);
+  expect(backend.api.requests).toEqual([]);
+});
+
+test('password reset blocks a missing special character before calling Cognito', async ({
+  page,
+}) => {
+  const backend = await registrationBackend(page);
+  await page.goto('/sign-in?mode=reset');
+  await page.getByLabel('Email', { exact: true }).fill('existing@example.com');
+  await page.getByLabel('Reset code', { exact: true }).fill(CODE);
+  await page
+    .getByLabel('New password', { exact: true })
+    .fill('MissingSpecialPassword42');
+  await page
+    .getByLabel('Confirm password', { exact: true })
+    .fill('MissingSpecialPassword42');
+  await page
+    .getByRole('button', { name: 'Reset password', exact: true })
+    .click();
+  await expect(page.getByRole('alert')).toContainText(
+    /At least one special character/,
+  );
+  await expect(
+    page.getByLabel('New password', { exact: true }),
+  ).toHaveAttribute('aria-invalid', 'true');
+  expect(backend.calls).toEqual([]);
+  expect(backend.api.requests).toEqual([]);
+});
+
+test('existing accounts can sign in with an eight-character password that does not meet new-password rules', async ({
+  page,
+}) => {
+  const backend = await registrationBackend(page);
+  const oldPassword = 'OldPass1';
+  backend.accounts.set('existing@example.com', {
+    password: oldPassword,
+    confirmed: true,
+  });
+  await page.goto('/sign-in');
+  await page.getByLabel('Email', { exact: true }).fill('existing@example.com');
+  await page.getByLabel('Password', { exact: true }).fill(oldPassword);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(
+    page.getByRole('heading', {
+      name: "Let's make sense of your dental costs.",
+    }),
+  ).toBeVisible();
+  expect(backend.calls).toEqual([
+    {
+      operation: 'InitiateAuth',
+      body: {
+        AuthFlow: 'USER_PASSWORD_AUTH',
+        ClientId: CLIENT_ID,
+        AuthParameters: {
+          USERNAME: 'existing@example.com',
+          PASSWORD: oldPassword,
+        },
+      },
+    },
+  ]);
+});
+
 test('registration uses the public Cognito client and keeps credentials out of storage, URLs, logs and the application API', async ({
   page,
 }) => {

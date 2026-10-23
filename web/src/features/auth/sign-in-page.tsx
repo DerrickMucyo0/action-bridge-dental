@@ -5,18 +5,12 @@ import { appConfig as config } from '../../config';
 import { CognitoError } from '../../services/cognito';
 import { useAuth } from '../../state/auth';
 import { PublicAccountForm, type PublicMode } from './public-account-form';
+import { passwordValidationMessage } from './password-policy';
+import { PasswordRequirements } from './password-requirements';
 import '../../landing.css';
 
 type Mode = 'signin' | PublicMode;
-const NEW_PASSWORD_RULE =
-  'At least 12 characters, with upper and lower case letters and a number.';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-/** Mirrors the pool's password policy so most mistakes are caught before calling Cognito. */
-const meetsPasswordRule = (value: string) =>
-  value.length >= 12 &&
-  /[A-Z]/.test(value) &&
-  /[a-z]/.test(value) &&
-  /[0-9]/.test(value);
 
 function errorMessage(caught: unknown): string {
   return caught instanceof CognitoError
@@ -55,6 +49,7 @@ export function SignInPage() {
     field?: 'email' | 'password' | 'confirmation';
   } | null>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const newPasswordRef = useRef<HTMLInputElement>(null);
   const requestPending = useRef(false);
 
   useEffect(() => {
@@ -95,8 +90,10 @@ export function SignInPage() {
     event.preventDefault();
     if (busy || requestPending.current || auth.status === 'restoring') return;
     if (session) {
-      if (!meetsPasswordRule(newPassword)) {
-        setError({ message: NEW_PASSWORD_RULE, field: 'password' });
+      const message = passwordValidationMessage(newPassword);
+      if (message) {
+        setError({ message, field: 'password' });
+        newPasswordRef.current?.focus();
         return;
       }
       if (confirmation !== newPassword) {
@@ -211,7 +208,7 @@ export function SignInPage() {
               </p>
             )}
             {error && (
-              <p className="si-notice si-alert" role="alert">
+              <p id="si-error" className="si-notice si-alert" role="alert">
                 {error.message}
               </p>
             )}
@@ -222,21 +219,29 @@ export function SignInPage() {
                   <label htmlFor="si-new-password">New password</label>
                   <input
                     id="si-new-password"
+                    ref={newPasswordRef}
                     className="si-input"
                     type="password"
                     autoComplete="new-password"
+                    minLength={12}
+                    maxLength={256}
                     value={newPassword}
                     onChange={(e) => {
                       setNewPassword(e.target.value);
                       setError(null);
                     }}
                     aria-invalid={error?.field === 'password'}
-                    aria-describedby="si-new-password-hint"
+                    aria-describedby={
+                      error?.field === 'password'
+                        ? 'si-new-password-hint si-error'
+                        : 'si-new-password-hint'
+                    }
                     autoFocus
                   />
-                  <span id="si-new-password-hint" className="si-hint">
-                    {NEW_PASSWORD_RULE}
-                  </span>
+                  <PasswordRequirements
+                    id="si-new-password-hint"
+                    value={newPassword}
+                  />
                 </div>
                 <div className="si-field">
                   <label htmlFor="si-confirm-password">Confirm password</label>

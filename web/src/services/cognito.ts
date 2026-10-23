@@ -45,7 +45,7 @@ const FRIENDLY: Record<string, string> = {
   LimitExceededException:
     'Too many requests. Wait a while before trying again. If you just created an account, return to email verification to request a new code.',
   InvalidPasswordException:
-    'That password does not meet the requirements (12+ characters, upper and lower case, a number).',
+    'That password does not meet the requirements (12+ characters, up to 256; uppercase and lowercase letters, a number and a special character; no spaces).',
   PasswordHistoryPolicyViolationException:
     'Choose a password you have not used before.',
   InvalidParameterException:
