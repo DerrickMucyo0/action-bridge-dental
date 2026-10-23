@@ -14,6 +14,11 @@ const panel = (page: Page) =>
   });
 const results = (page: Page) =>
   page.getByRole('region', { name: 'Plan comparison results', exact: true });
+const breakdown = (page: Page, side: 'Plan A' | 'Plan B', label: string) =>
+  results(page).getByRole('figure', {
+    name: `${side} cost breakdown · ${label}`,
+    exact: true,
+  });
 const saves = (api: MockApi) =>
   api.requests.filter(
     (request) =>
@@ -153,6 +158,33 @@ test('saves inputs only with consent, authentication and revision, then reopens 
   const api = await open(page);
   const source = structuredClone([...api.cases.values()][0]!);
   await complete(page);
+  await group(page, 'Plan B')
+    .getByLabel('Crown · Allowed amount', { exact: true })
+    .fill('800.25');
+  await group(page, 'Plan B')
+    .getByLabel('Crown · Dentist write-off', { exact: true })
+    .fill('100');
+  await page
+    .getByRole('button', { name: 'Compare plans', exact: true })
+    .click();
+  const alphaAmounts = ['$1,200 USD', '$300 USD', '$0 USD', '$1,500 USD'];
+  const betaAmounts = [
+    '$359.80 USD',
+    '$1,040.20 USD',
+    '$100 USD',
+    '$1,500 USD',
+  ];
+  await expect(
+    breakdown(page, 'Plan A', 'Current plan').getByRole('definition'),
+  ).toHaveText(alphaAmounts);
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(betaAmounts);
+  const displayedSegments = await results(page)
+    .locator('.comparison-cost-segment')
+    .evaluateAll((segments) =>
+      segments.map((segment) => (segment as HTMLElement).style.flexGrow),
+    );
   await expect(
     panel(page).getByRole('button', { name: 'Save comparison', exact: true }),
   ).toBeDisabled();
@@ -182,8 +214,21 @@ test('saves inputs only with consent, authentication and revision, then reopens 
     results(page).getByText('Complete estimate', { exact: true }),
   ).toHaveCount(2);
   await expect(results(page)).toContainText(
-    'Fictional Beta costs an estimated $900 less than Current plan',
+    'Fictional Beta costs an estimated $840.20 less than Current plan',
   );
+  await expect(
+    breakdown(page, 'Plan A', 'Current plan').getByRole('definition'),
+  ).toHaveText(alphaAmounts);
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(betaAmounts);
+  expect(
+    await results(page)
+      .locator('.comparison-cost-segment')
+      .evaluateAll((segments) =>
+        segments.map((segment) => (segment as HTMLElement).style.flexGrow),
+      ),
+  ).toEqual(displayedSegments);
   expect(
     readUrls.every(
       (url) =>
@@ -207,6 +252,7 @@ test('saves inputs only with consent, authentication and revision, then reopens 
   await expect(
     results(page).getByText('Complete estimate', { exact: true }),
   ).toHaveCount(0);
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
   await expect(panel(page)).not.toContainText(
     'Comparison saved in your account.',
   );
@@ -259,6 +305,7 @@ for (const unsupported of [false, true]) {
       'A patient-cost difference is unavailable',
     );
     await expect(results(page)).not.toContainText('costs an estimated');
+    await expect(results(page).getByRole('figure')).toHaveCount(0);
   });
 }
 
@@ -364,6 +411,7 @@ test('blocks duplicate saves and ignores a late save response after editing', as
   await expect(
     results(page).getByText('Needs information', { exact: true }),
   ).toHaveCount(0);
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
 });
 
 test('a stale save requires treatment reload and never writes a snapshot', async ({
@@ -371,6 +419,7 @@ test('a stale save requires treatment reload and never writes a snapshot', async
 }) => {
   const api = await open(page);
   await complete(page);
+  await expect(results(page).getByRole('figure')).toHaveCount(2);
   const source = [...api.cases.values()][0]!;
   api.cases.set(source.caseId, {
     ...source,
@@ -383,6 +432,7 @@ test('a stale save requires treatment reload and never writes a snapshot', async
   await expect(
     results(page).getByText('Complete estimate', { exact: true }),
   ).toHaveCount(0);
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: 'Compare plans', exact: true }),
   ).toBeDisabled();
@@ -402,7 +452,7 @@ test('a saved comparison arriving after a draft edit cannot replace the new inpu
   page,
 }) => {
   await open(page);
-  await compareUnknowns(page);
+  await complete(page);
   await save(page);
   await expect(panel(page)).toContainText('Comparison saved in your account.');
   await page.reload();
@@ -436,13 +486,14 @@ test('a saved comparison arriving after a draft edit cannot replace the new inpu
   await expect(
     results(page).getByText('Needs information', { exact: true }),
   ).toHaveCount(0);
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
 });
 
 test('a comparison revision conflict also blocks reopening existing snapshots', async ({
   page,
 }) => {
   const api = await open(page);
-  await compareUnknowns(page);
+  await complete(page);
   await save(page);
   await expect(panel(page)).toContainText('Comparison saved in your account.');
   await expect(
@@ -465,6 +516,7 @@ test('a comparison revision conflict also blocks reopening existing snapshots', 
   await expect(
     results(page).getByText('Needs information', { exact: true }),
   ).toHaveCount(0);
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
 });
 
 test('a missing saved comparison requires reviewing access and never opens a fallback snapshot', async ({
@@ -503,6 +555,7 @@ test('a missing saved comparison requires reviewing access and never opens a fal
   await expect(
     results(page).getByText('Needs information', { exact: true }),
   ).toHaveCount(0);
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
 });
 
 for (const status of [401, 403]) {
@@ -545,6 +598,7 @@ for (const status of [401, 403]) {
       await expect(
         group(page, 'Plan B').getByLabel('Plan name', { exact: true }),
       ).toHaveValue('Fictional Beta');
+      await expect(results(page).getByRole('figure')).toHaveCount(0);
     }
   });
 }

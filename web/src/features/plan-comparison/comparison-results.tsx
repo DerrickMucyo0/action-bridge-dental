@@ -17,6 +17,7 @@ import {
   Row,
 } from '../../components/ui';
 import { dateLabel, money } from '../../domain/model';
+import { CostBreakdown } from './cost-breakdown';
 
 export type ComparisonViewState =
   | { status: 'idle' }
@@ -116,11 +117,13 @@ export function ComparisonResults({
               side="Plan A"
               plan={result.planA}
               treatment={result.treatment}
+              currency={result.currency}
             />
             <PlanResult
               side="Plan B"
               plan={result.planB}
               treatment={result.treatment}
+              currency={result.currency}
             />
           </div>
           <Difference result={result} />
@@ -144,10 +147,12 @@ function PlanResult({
   side,
   plan,
   treatment,
+  currency,
 }: {
   side: 'Plan A' | 'Plan B';
   plan: ComparedPlan;
   treatment: PlanComparisonTreatment;
+  currency: PlanComparisonResult['currency'];
 }) {
   const headingId = useId();
   const estimate = plan.estimate;
@@ -168,22 +173,11 @@ function PlanResult({
                 (assumption) => assumption.code === 'SYNTHETIC_INPUT',
               ) && <Badge>Synthetic sample</Badge>}
             </div>
-            <Row
-              label="Estimated patient cost"
-              value={money(estimate.totals.patientPaysCents)}
-              strong
-            />
-            <Row
-              label="Estimated insurer payment"
-              value={money(estimate.totals.insurerPaysCents)}
-            />
-            <Row
-              label="Dentist fees"
-              value={money(estimate.totals.providerChargeCents)}
-            />
-            <Row
-              label="Contractual write-off"
-              value={money(estimate.totals.contractualWriteoffCents)}
+            <CostBreakdown
+              side={side}
+              planLabel={plan.label}
+              currency={currency}
+              totals={estimate.totals}
             />
             <EstimateLines
               estimate={estimate}

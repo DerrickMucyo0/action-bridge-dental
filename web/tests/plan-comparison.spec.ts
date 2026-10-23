@@ -131,6 +131,47 @@ async function showResults(page: Page, props: ComparisonTestProps) {
   });
 }
 
+const breakdown = (region: Locator, side: 'Plan A' | 'Plan B') =>
+  region.getByRole('figure', {
+    name: `${side} cost breakdown · Fictional ${side === 'Plan A' ? 'Alpha' : 'Beta'}`,
+    exact: true,
+  });
+
+/** The native definition list is the accessible equivalent of the decorative bar. */
+async function expectBreakdown(
+  region: Locator,
+  side: 'Plan A' | 'Plan B',
+  values: {
+    patient: string;
+    insurer: string;
+    writeoff: string;
+    fees: string;
+  },
+) {
+  const figure = breakdown(region, side);
+  await expect(figure).toBeVisible();
+  await expect(
+    figure.getByRole('heading', { name: 'Cost breakdown' }),
+  ).toBeVisible();
+  await expect(figure.getByRole('term')).toHaveText([
+    'Estimated patient cost',
+    'Estimated insurer payment',
+    'Contractual write-off',
+    'Dentist fees',
+  ]);
+  await expect(figure.getByRole('definition')).toHaveText([
+    values.patient,
+    values.insurer,
+    values.writeoff,
+    values.fees,
+  ]);
+  await expect(figure.locator('.comparison-cost-track')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  );
+  return figure;
+}
+
 async function openForm(page: Page) {
   const api = await mockBackend(page);
   await page.goto('/sign-in');
@@ -285,6 +326,9 @@ test('form validates names and malformed amounts, sends unknowns without editing
   await expect(
     page.getByText('Needs information', { exact: true }),
   ).toHaveCount(2);
+  await expect(
+    page.getByRole('figure', { name: /cost breakdown/ }),
+  ).toHaveCount(0);
   const requests = api.requests.slice(requestsBefore);
   expect(requests).toHaveLength(1);
   expect(requests[0]).toMatchObject({ method: 'POST' });
@@ -421,6 +465,18 @@ test('complete results render returned costs, line items, assumptions and the si
   await expect(a).toContainText('Complete estimate');
   await expect(a).toContainText('$1,200');
   await expect(b).toContainText('$700');
+  await expectBreakdown(region, 'Plan A', {
+    patient: '$1,200 USD',
+    insurer: '$300 USD',
+    writeoff: '$0 USD',
+    fees: '$1,500 USD',
+  });
+  await expectBreakdown(region, 'Plan B', {
+    patient: '$700 USD',
+    insurer: '$800 USD',
+    writeoff: '$0 USD',
+    fees: '$1,500 USD',
+  });
   await expect(region).toContainText(
     'Fictional Beta costs an estimated $500 less than Fictional Alpha for this treatment.',
   );
@@ -461,7 +517,127 @@ test('equal returned costs show an equal outcome without a winning plan', async 
   await expect(region).not.toContainText(
     /costs an estimated .* (more|less) than/,
   );
+  for (const side of ['Plan A', 'Plan B'] as const) {
+    await expectBreakdown(region, side, {
+      patient: '$1,200 USD',
+      insurer: '$300 USD',
+      writeoff: '$0 USD',
+      fees: '$1,500 USD',
+    });
+  }
 });
+
+test('contractual write-offs remain distinct from patient and insurer payments with exact returned cents', async ({
+  page,
+}) => {
+  const request = syntheticRequest();
+  request.planB.procedureFacts['crown-1']!.allowedCents = 79975;
+  request.planB.procedureFacts['crown-1']!.contractualWriteoffCents = 20025;
+  const result = syntheticResult(request, -20025);
+  expect(result.planB.estimate).toMatchObject({
+    status: 'estimated',
+    totals: {
+      patientPaysCents: 99975,
+      insurerPaysCents: 30000,
+      contractualWriteoffCents: 20025,
+      providerChargeCents: 150000,
+    },
+  });
+  const region = await showResults(page, {
+    request,
+    state: { status: 'ready', result },
+  });
+  await expectBreakdown(region, 'Plan A', {
+    patient: '$1,200 USD',
+    insurer: '$300 USD',
+    writeoff: '$0 USD',
+    fees: '$1,500 USD',
+  });
+  const b = await expectBreakdown(region, 'Plan B', {
+    patient: '$999.75 USD',
+    insurer: '$300 USD',
+    writeoff: '$200.25 USD',
+    fees: '$1,500 USD',
+  });
+  await expect(b.locator('.comparison-cost-segment.writeoff')).toBeVisible();
+  await expect(b).toContainText(
+    'A contractual write-off is a fee reduction. It is not paid by you or your insurer.',
+  );
+  await expect(region).toContainText(
+    'Fictional Beta costs an estimated $200.25 less than Fictional Alpha for this treatment.',
+  );
+  await expect(b).not.toContainText('%');
+});
+
+for (const zero of ['patient', 'insurer', 'all'] as const) {
+  test(`known zero ${zero} amounts stay zero without misleading or invalid bar geometry`, async ({
+    page,
+  }) => {
+    const request = syntheticRequest();
+    for (const plan of [request.planA, request.planB]) {
+      if (zero === 'patient') {
+        plan.policy!.insurerRateBpsByCategory = { basic: 10000, major: 10000 };
+        Object.assign(plan.planYears['py-2026']!, {
+          annualDeductibleCents: 0,
+          deductibleAlreadyMetCents: 0,
+          annualMaximumCents: 200000,
+          insurerAlreadyPaidCents: 0,
+        });
+      } else if (zero === 'insurer') {
+        plan.planYears['py-2026']!.insurerAlreadyPaidCents = 80000;
+      } else {
+        for (const procedure of request.treatment.procedures) {
+          procedure.providerChargeCents = 0;
+          plan.procedureFacts[procedure.id]!.allowedCents = 0;
+        }
+      }
+    }
+    const region = await showResults(page, {
+      request,
+      state: { status: 'ready', result: syntheticResult(request) },
+    });
+    for (const side of ['Plan A', 'Plan B'] as const) {
+      const figure = await expectBreakdown(region, side, {
+        patient: zero === 'insurer' ? '$1,500 USD' : '$0 USD',
+        insurer: zero === 'patient' ? '$1,500 USD' : '$0 USD',
+        writeoff: '$0 USD',
+        fees: zero === 'all' ? '$0 USD' : '$1,500 USD',
+      });
+      const zeroSegments =
+        zero === 'all'
+          ? figure.locator('.comparison-cost-segment')
+          : figure.locator(`.comparison-cost-segment.${zero}`);
+      await expect(zeroSegments).toHaveCount(zero === 'all' ? 3 : 1);
+      for (const segment of await zeroSegments.all()) {
+        expect(
+          await segment.evaluate(
+            (element) => element.getBoundingClientRect().width,
+          ),
+        ).toBe(0);
+      }
+      if (zero === 'all') {
+        await expect(figure).toContainText(
+          'No treatment charges in this estimate.',
+        );
+        await expect(figure.locator('.comparison-cost-track')).toBeVisible();
+      }
+      await expect(figure).not.toContainText(/NaN|Infinity|%/);
+    }
+    await expect(region).toContainText(
+      'Both plans have the same estimated patient cost.',
+    );
+    await page.emulateMedia({ forcedColors: 'active' });
+    for (const segment of await region
+      .locator('.comparison-cost-segment.is-zero')
+      .all()) {
+      expect(
+        await segment.evaluate(
+          (element) => element.getBoundingClientRect().width,
+        ),
+      ).toBe(0);
+    }
+  });
+}
 
 test('a positive returned difference identifies the higher patient cost', async ({
   page,
@@ -495,6 +671,8 @@ test('a missing plan fact does not hide the complete other plan or invent a cost
     exact: true,
   });
   await expect(a).toContainText('Complete estimate');
+  await expect(breakdown(region, 'Plan A')).toBeVisible();
+  await expect(breakdown(region, 'Plan B')).toHaveCount(0);
   await expect(b).toContainText('Needs information');
   await expect(b).toContainText('Crown · Plan allowed amount');
   await expect(b).toContainText(
@@ -528,6 +706,8 @@ test('unsupported plan rules remain visible without a misleading difference', as
     exact: true,
   });
   await expect(b).toContainText('Unsupported plan rules');
+  await expect(breakdown(region, 'Plan A')).toBeVisible();
+  await expect(breakdown(region, 'Plan B')).toHaveCount(0);
   await expect(b).toContainText('Waiting periods');
   await expect(
     b.getByText('Estimated patient cost', { exact: true }),
@@ -557,6 +737,8 @@ test('conditional results show assumptions next to the returned cost difference'
   await expect(region).toContainText(
     'Confirm the plan terms before relying on these figures.',
   );
+  await expect(breakdown(region, 'Plan A')).toBeVisible();
+  await expect(breakdown(region, 'Plan B')).toBeVisible();
 });
 
 for (const changed of ['revision', 'plan', 'treatment', 'schedule'] as const) {
@@ -583,6 +765,7 @@ for (const changed of ['revision', 'plan', 'treatment', 'schedule'] as const) {
     await expect(
       region.getByText('Estimated patient cost', { exact: true }),
     ).toHaveCount(0);
+    await expect(region.getByRole('figure')).toHaveCount(0);
     await expect(
       region.getByRole('heading', {
         name: 'Estimated patient-cost difference',
@@ -607,7 +790,68 @@ test('malformed returned results are withheld instead of rendered as estimates',
   await expect(
     region.getByText('Estimated patient cost', { exact: true }),
   ).toHaveCount(0);
+  await expect(region.getByRole('figure')).toHaveCount(0);
 });
+
+test('inconsistent returned totals retain their text but suppress misleading cost geometry', async ({
+  page,
+}) => {
+  const request = syntheticRequest();
+  const result = syntheticResult(request);
+  if (result.planB.estimate.status !== 'estimated')
+    throw new Error('The synthetic comparison must be complete.');
+  result.planB.estimate.totals.providerChargeCents = 160000;
+  expect(PlanComparisonResultSchema.safeParse(result).success).toBe(true);
+  const region = await showResults(page, {
+    request,
+    state: { status: 'ready', result },
+  });
+  const a = breakdown(region, 'Plan A');
+  const b = breakdown(region, 'Plan B');
+  await expect(a.locator('.comparison-cost-track')).toBeVisible();
+  await expect(b).toContainText(
+    'The returned amounts do not form a consistent cost breakdown.',
+  );
+  await expect(b.locator('.comparison-cost-track')).toHaveCount(0);
+  await expect(b.getByRole('definition')).toHaveText([
+    '$1,200 USD',
+    '$300 USD',
+    '$0 USD',
+    '$1,600 USD',
+  ]);
+  await expect(region).not.toContainText(/NaN|Infinity/);
+});
+
+for (const malformed of [
+  'currency',
+  'fractional cents',
+  'negative amount',
+] as const) {
+  test(`malformed ${malformed} do not reach the cost visualization`, async ({
+    page,
+  }) => {
+    const request = syntheticRequest();
+    const result = syntheticResult(request);
+    if (malformed === 'currency') Object.assign(result, { currency: 'EUR' });
+    if (result.planB.estimate.status !== 'estimated')
+      throw new Error('The synthetic comparison must be complete.');
+    if (malformed === 'fractional cents')
+      result.planB.estimate.totals.patientPaysCents = 120000.5;
+    if (malformed === 'negative amount')
+      result.planB.estimate.totals.insurerPaysCents = -1;
+    const region = await showResults(page, {
+      request,
+      state: { status: 'ready', result },
+    });
+    await expect(region).toContainText(
+      'These comparison results could not be validated.',
+    );
+    await expect(region.getByRole('figure')).toHaveCount(0);
+    await expect(
+      region.getByText('Estimated patient cost', { exact: true }),
+    ).toHaveCount(0);
+  });
+}
 
 test('loading and retryable error states expose status and retry without retaining amounts', async ({
   page,
@@ -622,6 +866,7 @@ test('loading and retryable error states expose status and retry without retaini
   await expect(
     region.getByText('Estimated patient cost', { exact: true }),
   ).toHaveCount(0);
+  await expect(region.getByRole('figure')).toHaveCount(0);
   await page.evaluate(() =>
     window.renderPlanComparisonTest({
       request: null,
@@ -636,6 +881,7 @@ test('loading and retryable error states expose status and retry without retaini
   await expect(region.getByRole('alert')).toContainText(
     'The comparison could not be loaded',
   );
+  await expect(region.getByRole('figure')).toHaveCount(0);
   await expect(region).toContainText('Reference: synthetic-request');
   await region
     .getByRole('button', { name: 'Retry comparison', exact: true })
@@ -684,9 +930,21 @@ for (const width of [360, 1440]) {
     ).toBe(true);
 
     const request = syntheticRequest();
-    await showResults(page, {
+    const region = await showResults(page, {
       request,
       state: { status: 'ready', result: syntheticResult(request) },
+    });
+    await expectBreakdown(region, 'Plan A', {
+      patient: '$1,200 USD',
+      insurer: '$300 USD',
+      writeoff: '$0 USD',
+      fees: '$1,500 USD',
+    });
+    await expectBreakdown(region, 'Plan B', {
+      patient: '$1,200 USD',
+      insurer: '$300 USD',
+      writeoff: '$0 USD',
+      fees: '$1,500 USD',
     });
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     expect(

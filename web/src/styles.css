@@ -2960,6 +2960,130 @@ tfoot td {
 .plan-comparison-results .value-row {
   flex-wrap: wrap;
 }
+.comparison-cost-breakdown {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-muted);
+}
+.comparison-cost-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.comparison-cost-caption h4 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+}
+.comparison-cost-track {
+  display: flex;
+  height: 26px;
+  overflow: hidden;
+  border: 1px solid #77867b;
+  border-radius: 8px;
+  background: var(--surface);
+}
+.comparison-cost-segment {
+  flex-basis: 0;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.comparison-cost-segment.patient,
+.comparison-cost-swatch.patient {
+  background: #0e6b4d;
+}
+.comparison-cost-segment.insurer,
+.comparison-cost-swatch.insurer {
+  background: repeating-linear-gradient(
+    120deg,
+    #d2ecdf 0,
+    #d2ecdf 5px,
+    #4b8a69 5px,
+    #4b8a69 7px
+  );
+}
+.comparison-cost-segment.writeoff,
+.comparison-cost-swatch.writeoff {
+  background:
+    radial-gradient(#5f6b65 1px, transparent 1px) 0 0 / 5px 5px,
+    #edf1e9;
+}
+.comparison-cost-legend {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.comparison-cost-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px 14px;
+  font-size: 13px;
+}
+.comparison-cost-item dt {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.comparison-cost-swatch {
+  display: inline-block;
+  flex: 0 0 12px;
+  height: 12px;
+  border: 1px solid #77867b;
+  border-radius: 3px;
+}
+.comparison-cost-item dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+.comparison-cost-item.patient dd {
+  font-size: 19px;
+}
+.comparison-cost-currency {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.comparison-cost-total {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 600px) {
+  .comparison-cost-breakdown {
+    padding: 14px;
+  }
+  .comparison-cost-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .comparison-cost-item dd {
+    padding-left: 20px;
+    text-align: left;
+  }
+  .comparison-cost-total dd {
+    padding-left: 0;
+  }
+}
+@media (forced-colors: active) {
+  .comparison-cost-track,
+  .comparison-cost-swatch,
+  .comparison-cost-segment:not(.is-zero) {
+    border-color: CanvasText;
+  }
+  .comparison-cost-segment:not(.is-zero) {
+    border-inline-end: 1px solid CanvasText;
+  }
+}
 @media (max-width: 1050px) {
   .plan-comparison-grid {
     grid-template-columns: minmax(0, 1fr);

@@ -13,6 +13,11 @@ const group = (page: Page, side: 'Plan A' | 'Plan B') =>
   page.getByRole('group', { name: side, exact: true });
 const results = (page: Page) =>
   page.getByRole('region', { name: 'Plan comparison results', exact: true });
+const breakdown = (page: Page, side: 'Plan A' | 'Plan B', label: string) =>
+  results(page).getByRole('figure', {
+    name: `${side} cost breakdown · ${label}`,
+    exact: true,
+  });
 const submit = (page: Page) =>
   page.getByRole('button', { name: 'Compare plans', exact: true });
 const comparisons = (api: MockApi) =>
@@ -217,6 +222,8 @@ test('sends the selected case revision and independent plan facts with the Cogni
   await expect(
     results(page).getByText(/A patient-cost difference is unavailable/),
   ).toBeVisible();
+  await expect(breakdown(page, 'Plan A', 'Current plan')).toBeVisible();
+  await expect(results(page).getByRole('figure')).toHaveCount(1);
   expect([...api.cases.values()]).toEqual([source]);
   expect([...api.strategies.values()].flat()).toEqual([]);
   expect(
@@ -246,6 +253,12 @@ test('renders both real engine estimates and their returned patient-cost differe
   });
   await expect(a).toContainText('$1,200');
   await expect(b).toContainText('$300');
+  await expect(
+    breakdown(page, 'Plan A', 'Current plan').getByRole('definition'),
+  ).toHaveText(['$1,200 USD', '$300 USD', '$0 USD', '$1,500 USD']);
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(['$300 USD', '$1,200 USD', '$0 USD', '$1,500 USD']);
   await expect(output).toContainText(
     'Fictional Beta costs an estimated $900 less than Current plan',
   );
@@ -256,6 +269,29 @@ test('renders both real engine estimates and their returned patient-cost differe
   expect(returned.planBMinusPlanACents).toBe(-90000);
   expect(returned.planB.estimate.status).toBe('estimated');
 
+  // A plan-specific write-off remains separate from both payment amounts.
+  const beta = group(page, 'Plan B');
+  await beta
+    .getByLabel('Crown · Allowed amount', { exact: true })
+    .fill('800.25');
+  await beta
+    .getByLabel('Crown · Dentist write-off', { exact: true })
+    .fill('100');
+  await submit(page).click();
+  await expect(
+    breakdown(page, 'Plan A', 'Current plan').getByRole('definition'),
+  ).toHaveText(['$1,200 USD', '$300 USD', '$0 USD', '$1,500 USD']);
+  const betaBreakdown = breakdown(page, 'Plan B', 'Fictional Beta');
+  await expect(betaBreakdown.getByRole('definition')).toHaveText([
+    '$359.80 USD',
+    '$1,040.20 USD',
+    '$100 USD',
+    '$1,500 USD',
+  ]);
+  await expect(
+    betaBreakdown.locator('.comparison-cost-segment.writeoff'),
+  ).toHaveCSS('flex-grow', '10000');
+
   // Editing the same plan IDs invalidates figures immediately, before the next request.
   await group(page, 'Plan B')
     .getByLabel('Plan name', { exact: true })
@@ -264,6 +300,7 @@ test('renders both real engine estimates and their returned patient-cost differe
     output.getByText('Complete estimate', { exact: true }),
   ).toHaveCount(0);
   await expect(output).not.toContainText('$900');
+  await expect(output.getByRole('figure')).toHaveCount(0);
 });
 
 test('preserves an unsupported plan independently and withholds the cost difference', async ({
@@ -286,6 +323,8 @@ test('preserves an unsupported plan independently and withholds the cost differe
     'A patient-cost difference is unavailable',
   );
   await expect(output).not.toContainText('costs an estimated');
+  await expect(breakdown(page, 'Plan A', 'Current plan')).toBeVisible();
+  await expect(output.getByRole('figure')).toHaveCount(1);
 });
 
 test('blocks duplicate submits and ignores an old response after the draft changes', async ({
@@ -316,6 +355,7 @@ test('blocks duplicate submits and ignores an old response after the draft chang
     results(page).getByText('Comparing the two plans…', { exact: true }),
   ).toBeVisible();
   await expect(submit(page)).toBeDisabled();
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
   expect(requests).toBe(1);
   // Keep the same plan IDs and labels: only request generation can identify this old response.
   await group(page, 'Plan B')
@@ -325,12 +365,16 @@ test('blocks duplicate submits and ignores an old response after the draft chang
     results(page).getByText('Comparing the two plans…', { exact: true }),
   ).toHaveCount(0);
   await expect(submit(page)).toBeEnabled();
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
   await submit(page).click();
   const beta = results(page).getByRole('region', {
     name: 'Plan B · Fictional Beta',
     exact: true,
   });
   await expect(beta).toContainText('$750');
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(['$750 USD', '$750 USD', '$0 USD', '$1,500 USD']);
   const oldResponse = page.waitForResponse(
     (response) =>
       comparisonRoute.test(response.url()) &&
@@ -347,6 +391,9 @@ test('blocks duplicate submits and ignores an old response after the draft chang
   );
   await expect(beta).toContainText('$750');
   await expect(beta).not.toContainText('$300');
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(['$750 USD', '$750 USD', '$0 USD', '$1,500 USD']);
   expect(requests).toBe(2);
 });
 
@@ -394,6 +441,7 @@ for (const scenario of [
       'Review the complete comparison request.',
     );
     await expect(results(page)).toContainText('req-validation');
+    await expect(results(page).getByRole('figure')).toHaveCount(0);
     await expect(
       results(page).getByRole('button', { name: 'Retry comparison' }),
     ).toHaveCount(0);
@@ -408,7 +456,9 @@ test('a forbidden comparison shows a permission error while preserving the draft
   page,
 }) => {
   await openComparison(page);
-  await namePlans(page);
+  await completePlans(page);
+  await submit(page).click();
+  await expect(results(page).getByRole('figure')).toHaveCount(2);
   await page.route(comparisonRoute, (route) =>
     route.fulfill({
       status: 403,
@@ -425,6 +475,7 @@ test('a forbidden comparison shows a permission error while preserving the draft
   await submit(page).click();
   await expect(results(page)).toContainText(/permission|access|allowed/i);
   await expect(results(page)).toContainText('req-forbidden');
+  await expect(results(page).getByRole('figure')).toHaveCount(0);
   await expect(
     results(page).getByRole('button', { name: 'Retry comparison' }),
   ).toHaveCount(0);
@@ -443,7 +494,9 @@ for (const scenario of [
   }) => {
     const api = await openComparison(page);
     const record = [...api.cases.values()][0]!;
-    await namePlans(page);
+    await completePlans(page);
+    await submit(page).click();
+    await expect(results(page).getByRole('figure')).toHaveCount(2);
     let calls = 0;
     await page.route(comparisonRoute, (route) => {
       calls += 1;
@@ -472,6 +525,7 @@ for (const scenario of [
     }
     await submit(page).click();
     await expect(results(page)).toContainText('req-reload');
+    await expect(results(page).getByRole('figure')).toHaveCount(0);
     await expect(submit(page)).toBeDisabled();
     await group(page, 'Plan B')
       .getByLabel('Plan name', { exact: true })
@@ -568,6 +622,7 @@ for (const failure of ['network', 'server', 'invalid-response'] as const) {
       results(page).getByText('Complete estimate', { exact: true }),
     ).toHaveCount(0);
     await expect(results(page)).not.toContainText('costs an estimated');
+    await expect(results(page).getByRole('figure')).toHaveCount(0);
     expect(requests).toBe(1);
     await expect(
       group(page, 'Plan B').getByLabel('Plan name', { exact: true }),
