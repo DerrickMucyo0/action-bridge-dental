@@ -246,6 +246,39 @@ test('saves inputs only with consent, authentication and revision, then reopens 
       (request) => request.headers.authorization === 'Bearer test-access',
     ),
   ).toBe(true);
+
+  // Reopened snapshots print their authoritative figures without saving or sharing again.
+  const printRequests: string[] = [];
+  page.on('request', (request) => printRequests.push(request.url()));
+  const previousRequestCount = api.requests.length;
+  await page.evaluate(() => {
+    window.print = () => {
+      document.documentElement.dataset.printCalled = 'true';
+    };
+  });
+  await results(page)
+    .getByRole('button', { name: 'Print / Save as PDF', exact: true })
+    .click();
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-print-called',
+    'true',
+  );
+  await page.emulateMedia({ media: 'print' });
+  const report = page.getByRole('article', {
+    name: 'Insurance plan comparison report',
+    exact: true,
+  });
+  await expect(report).toBeVisible();
+  await expect(report).toContainText('Current plan');
+  await expect(report).toContainText('Fictional Beta');
+  for (const amount of [...alphaAmounts, ...betaAmounts])
+    await expect(report).toContainText(amount);
+  await expect(report).toContainText('NOT INSURER CONFIRMATION');
+  expect(api.requests).toHaveLength(previousRequestCount);
+  expect(printRequests).toEqual([]);
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  await page.emulateMedia({ media: 'screen' });
+
   await group(page, 'Plan B')
     .getByLabel('Plan name', { exact: true })
     .fill('Edited Beta');
@@ -253,6 +286,13 @@ test('saves inputs only with consent, authentication and revision, then reopens 
     results(page).getByText('Complete estimate', { exact: true }),
   ).toHaveCount(0);
   await expect(results(page).getByRole('figure')).toHaveCount(0);
+  await expect(
+    results(page).getByRole('button', {
+      name: 'Print / Save as PDF',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(page.locator('.comparison-print-root')).toHaveCount(0);
   await expect(panel(page)).not.toContainText(
     'Comparison saved in your account.',
   );
@@ -306,6 +346,24 @@ for (const unsupported of [false, true]) {
     );
     await expect(results(page)).not.toContainText('costs an estimated');
     await expect(results(page).getByRole('figure')).toHaveCount(0);
+    await results(page)
+      .getByRole('button', { name: 'Print / Save as PDF', exact: true })
+      .focus();
+    await page.evaluate(() => {
+      window.print = () => {};
+    });
+    await page.keyboard.press('Enter');
+    await page.emulateMedia({ media: 'print' });
+    const report = page.getByRole('article', {
+      name: 'Insurance plan comparison report',
+      exact: true,
+    });
+    await expect(report).toBeVisible();
+    await expect(report).toContainText(
+      unsupported ? 'Unsupported plan rules' : 'Needs information',
+    );
+    await expect(report).not.toContainText('costs an estimated');
+    await expect(report).not.toContainText('$0');
   });
 }
 
@@ -433,6 +491,13 @@ test('a stale save requires treatment reload and never writes a snapshot', async
     results(page).getByText('Complete estimate', { exact: true }),
   ).toHaveCount(0);
   await expect(results(page).getByRole('figure')).toHaveCount(0);
+  await expect(
+    results(page).getByRole('button', {
+      name: 'Print / Save as PDF',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(page.locator('.comparison-print-root')).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: 'Compare plans', exact: true }),
   ).toBeDisabled();

@@ -301,6 +301,10 @@ test('renders both real engine estimates and their returned patient-cost differe
   ).toHaveCount(0);
   await expect(output).not.toContainText('$900');
   await expect(output.getByRole('figure')).toHaveCount(0);
+  await expect(
+    output.getByRole('button', { name: 'Print / Save as PDF', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator('.comparison-print-root')).toHaveCount(0);
 });
 
 test('preserves an unsupported plan independently and withholds the cost difference', async ({
@@ -356,6 +360,12 @@ test('blocks duplicate submits and ignores an old response after the draft chang
   ).toBeVisible();
   await expect(submit(page)).toBeDisabled();
   await expect(results(page).getByRole('figure')).toHaveCount(0);
+  await expect(
+    results(page).getByRole('button', {
+      name: 'Print / Save as PDF',
+      exact: true,
+    }),
+  ).toHaveCount(0);
   expect(requests).toBe(1);
   // Keep the same plan IDs and labels: only request generation can identify this old response.
   await group(page, 'Plan B')
@@ -366,6 +376,13 @@ test('blocks duplicate submits and ignores an old response after the draft chang
   ).toHaveCount(0);
   await expect(submit(page)).toBeEnabled();
   await expect(results(page).getByRole('figure')).toHaveCount(0);
+  await expect(
+    results(page).getByRole('button', {
+      name: 'Print / Save as PDF',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(page.locator('.comparison-print-root')).toHaveCount(0);
   await submit(page).click();
   const beta = results(page).getByRole('region', {
     name: 'Plan B · Fictional Beta',
@@ -623,6 +640,13 @@ for (const failure of ['network', 'server', 'invalid-response'] as const) {
     ).toHaveCount(0);
     await expect(results(page)).not.toContainText('costs an estimated');
     await expect(results(page).getByRole('figure')).toHaveCount(0);
+    await expect(
+      results(page).getByRole('button', {
+        name: 'Print / Save as PDF',
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(page.locator('.comparison-print-root')).toHaveCount(0);
     expect(requests).toBe(1);
     await expect(
       group(page, 'Plan B').getByLabel('Plan name', { exact: true }),

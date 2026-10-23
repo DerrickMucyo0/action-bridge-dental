@@ -2960,6 +2960,186 @@ tfoot td {
 .plan-comparison-results .value-row {
   flex-wrap: wrap;
 }
+.comparison-print-root {
+  display: none;
+}
+@page comparison-report {
+  size: auto;
+  margin: 16mm 12mm;
+}
+@media print {
+  html:has(body > .comparison-print-root),
+  body:has(> .comparison-print-root) {
+    width: auto;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    color: #111;
+    background: #fff;
+  }
+  /* A body-level portal keeps navigation, forms and account details out of the report. */
+  body:has(> .comparison-print-root) > :not(.comparison-print-root) {
+    display: none !important;
+  }
+  .comparison-print-root {
+    display: block;
+    page: comparison-report;
+    width: 100%;
+    max-width: 100%;
+    color: #111;
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+  }
+  .comparison-report,
+  .comparison-report * {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-shadow: none;
+    box-shadow: none;
+  }
+  .comparison-report {
+    margin: 0;
+    padding: 0;
+  }
+  .comparison-report h1,
+  .comparison-report h2,
+  .comparison-report h3,
+  .comparison-report h4,
+  .comparison-report caption {
+    color: #111;
+    letter-spacing: normal;
+    text-wrap: wrap;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+  .comparison-report h1 {
+    margin: 0 0 5mm;
+    font-size: 21pt;
+    line-height: 1.2;
+  }
+  .comparison-report h2 {
+    margin: 0 0 3mm;
+    font-size: 14pt;
+  }
+  .comparison-report h3,
+  .comparison-report h4 {
+    margin: 4mm 0 2mm;
+    font-size: 11pt;
+  }
+  .comparison-report p,
+  .comparison-report li {
+    orphans: 3;
+    widows: 3;
+    line-height: 1.5;
+  }
+  .comparison-report p + p,
+  .comparison-report ul {
+    margin-top: 2mm;
+  }
+  .comparison-report-header {
+    margin-bottom: 6mm;
+    padding-bottom: 4mm;
+    border-bottom: 2px solid #333;
+  }
+  .comparison-report-brand {
+    margin-bottom: 2mm;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .comparison-report-meta,
+  .comparison-report-sources,
+  .comparison-report-footer {
+    font-size: 9pt;
+  }
+  .comparison-report-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2mm 6mm;
+    margin: 3mm 0;
+  }
+  .comparison-report-meta dt {
+    font-weight: 700;
+  }
+  .comparison-report-meta dd {
+    margin: 0 0 2mm;
+  }
+  .comparison-report-section,
+  .comparison-report-plan {
+    display: block;
+    margin: 0 0 7mm;
+    break-inside: auto;
+  }
+  .comparison-report-totals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2mm 6mm;
+    margin: 3mm 0;
+  }
+  .comparison-report-totals > div {
+    padding: 2mm 0;
+    border-bottom: 1px solid #888;
+    break-inside: avoid-page;
+  }
+  .comparison-report-totals dt {
+    font-size: 9pt;
+  }
+  .comparison-report-totals dd {
+    margin: 0;
+    font-size: 12pt;
+    font-weight: 700;
+  }
+  .comparison-report-warning {
+    margin: 3mm 0;
+    padding: 3mm;
+    border: 1.5px solid #333;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  .comparison-report-table {
+    width: 100%;
+    margin: 3mm 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 9pt;
+  }
+  .comparison-report-table caption {
+    margin-bottom: 2mm;
+    font-weight: 700;
+    text-align: left;
+  }
+  .comparison-report-table th,
+  .comparison-report-table td {
+    padding: 2mm;
+    border: 1px solid #888;
+    color: #111;
+    background: #fff;
+    text-align: left;
+    vertical-align: top;
+    white-space: normal;
+  }
+  .comparison-report-table thead {
+    display: table-header-group;
+  }
+  .comparison-report-table tr {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  .comparison-report-table th:first-child {
+    width: 27%;
+  }
+  .comparison-report-money {
+    font-variant-numeric: tabular-nums;
+  }
+  .comparison-report-footer {
+    padding-top: 4mm;
+    border-top: 1px solid #888;
+  }
+}
 .comparison-cost-breakdown {
   display: grid;
   gap: 14px;

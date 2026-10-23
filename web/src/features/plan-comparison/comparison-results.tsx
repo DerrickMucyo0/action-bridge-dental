@@ -1,4 +1,5 @@
 import {
+  PlanComparisonRequestSchema,
   PlanComparisonResultSchema,
   type ComparedPlan,
   type EstimatedResult,
@@ -7,7 +8,8 @@ import {
   type PlanComparisonResult,
   type PlanComparisonTreatment,
 } from '@actionbridge/contracts';
-import { useId } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { createPortal, flushSync } from 'react-dom';
 import {
   Badge,
   Button,
@@ -18,6 +20,7 @@ import {
 } from '../../components/ui';
 import { dateLabel, money } from '../../domain/model';
 import { CostBreakdown } from './cost-breakdown';
+import { ComparisonReport } from './comparison-report';
 
 export type ComparisonViewState =
   | { status: 'idle' }
@@ -51,8 +54,14 @@ export function ComparisonResults({
       ? PlanComparisonResultSchema.safeParse(state.result)
       : null;
   const result = checked?.success ? checked.data : null;
+  const checkedRequest = request
+    ? PlanComparisonRequestSchema.safeParse(request)
+    : null;
+  const currentRequest = checkedRequest?.success ? checkedRequest.data : null;
   const current =
-    result !== null && request !== null && matchesRequest(result, request);
+    result !== null &&
+    currentRequest !== null &&
+    matchesRequest(result, currentRequest);
 
   return (
     <section
@@ -110,8 +119,9 @@ export function ComparisonResults({
           schedule. Compare again to refresh them.
         </Notice>
       )}
-      {result && current && (
+      {result && current && currentRequest && (
         <>
+          <ComparisonPrintAction request={currentRequest} result={result} />
           <div className="plan-comparison-grid">
             <PlanResult
               side="Plan A"
@@ -140,6 +150,78 @@ export function ComparisonResults({
         excluded. Your dentist decides treatment timing.
       </Notice>
     </section>
+  );
+}
+
+/** The report exists only for printing and is removed when printing ends or results change. */
+function ComparisonPrintAction({
+  request,
+  result,
+}: {
+  request: PlanComparisonRequest;
+  result: PlanComparisonResult;
+}) {
+  const helpId = useId();
+  const [exportedAt, setExportedAt] = useState<Date | null>(null);
+  const [printError, setPrintError] = useState(false);
+
+  useEffect(() => {
+    const prepare = () => {
+      // Native print preview must see the report before it takes its document snapshot.
+      flushSync(() => setExportedAt(new Date()));
+    };
+    const finish = () => setExportedAt(null);
+    window.addEventListener('beforeprint', prepare);
+    window.addEventListener('afterprint', finish);
+    return () => {
+      window.removeEventListener('beforeprint', prepare);
+      window.removeEventListener('afterprint', finish);
+    };
+  }, []);
+
+  const print = () => {
+    setPrintError(false);
+    flushSync(() => setExportedAt(new Date()));
+    try {
+      window.print();
+    } catch {
+      setExportedAt(null);
+      setPrintError(true);
+    }
+  };
+
+  return (
+    <div className="comparison-print-action stack">
+      <div className="actions">
+        <Button variant="secondary" aria-describedby={helpId} onClick={print}>
+          Print / Save as PDF
+        </Button>
+      </div>
+      <p id={helpId} className="small muted">
+        Opens your browser’s print dialog. Choose Save as PDF to keep a copy of
+        this report.
+      </p>
+      {printError && (
+        <Notice tone="danger">
+          The print dialog could not be opened. Try again, or use your browser’s
+          Print command.
+        </Notice>
+      )}
+      {exportedAt &&
+        createPortal(
+          <main
+            className="comparison-print-root"
+            aria-label="Printable comparison report"
+          >
+            <ComparisonReport
+              request={request}
+              result={result}
+              exportedAt={exportedAt}
+            />
+          </main>,
+          document.body,
+        )}
+    </div>
   );
 }
 
