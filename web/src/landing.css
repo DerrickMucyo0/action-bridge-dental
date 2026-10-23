@@ -380,69 +380,106 @@ html:has(.lp) {
 
 /* ---- Hero ---------------------------------------------------------------------------- */
 
+/* Original bridge geometry; decorative and static at every viewport size. */
+:is(.lp, .si) .welcome-visual {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 32px;
+  background:
+    radial-gradient(
+      ellipse at 50% 45%,
+      rgba(95, 211, 154, 0.17),
+      transparent 65%
+    ),
+    linear-gradient(145deg, #184c3b, #0c3026);
+  pointer-events: none;
+}
+:is(.lp, .si) .welcome-visual span {
+  position: absolute;
+  display: block;
+  box-sizing: border-box;
+}
+:is(.lp, .si) .welcome-visual-halo {
+  left: 50%;
+  top: 50%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(182, 243, 211, 0.12);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+:is(.lp, .si) .welcome-visual-halo-outer {
+  width: 88%;
+}
+:is(.lp, .si) .welcome-visual-halo-inner {
+  width: 69%;
+  border-color: rgba(182, 243, 211, 0.2);
+}
+:is(.lp, .si) .welcome-visual-arch {
+  top: 24%;
+  left: 23%;
+  width: 54%;
+  height: 50%;
+  border: clamp(5px, 0.75vw, 10px) solid #9be8bf;
+  border-bottom: 0;
+  border-radius: 50% 50% 0 0;
+  filter: drop-shadow(0 0 20px rgba(95, 211, 154, 0.12));
+}
+:is(.lp, .si) .welcome-visual-light {
+  top: 46%;
+  left: 46%;
+  width: 8%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #d7f8e7;
+  box-shadow: 0 0 36px rgba(155, 232, 191, 0.35);
+}
+:is(.lp, .si) .welcome-visual-baseline {
+  left: 13%;
+  top: 74%;
+  width: 74%;
+  height: 1px;
+  background: rgba(182, 243, 211, 0.55);
+}
+:is(.lp, .si) .welcome-visual-endpoint {
+  top: 74%;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #b6f3d3;
+  border-radius: 50%;
+  background: #184c3b;
+  transform: translate(-50%, -50%);
+}
+:is(.lp, .si) .welcome-visual-endpoint-left {
+  left: 13%;
+}
+:is(.lp, .si) .welcome-visual-endpoint-right {
+  left: 87%;
+}
+
 .lp-hero {
   --hero-left: max(var(--gutter), calc((100vw - 1320px) / 2 + var(--gutter)));
   position: relative;
-  height: 94svh;
-  min-height: 720px;
   overflow: hidden;
-  background: #edf3f5;
+  background: #f1f5f1;
 }
 .lp-hero-media {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  top: 40%;
-  animation: lp-hero-in 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  position: relative;
+  width: min(100%, 540px);
+  aspect-ratio: 1.5;
+  align-self: center;
+  margin: 32px 0;
 }
-.lp-hero-media img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 32% 50%;
-  transform: scaleX(-1);
-}
-@keyframes lp-hero-in {
-  from {
-    opacity: 0;
-    transform: scale(1.025);
-  }
-  55% {
-    opacity: 1;
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.lp-hero-shade {
+.lp-hero-media .welcome-visual {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(
-      180deg,
-      #edf3f5 0%,
-      #edf3f5 40%,
-      rgba(237, 243, 245, 0) 50%
-    ),
-    linear-gradient(
-      0deg,
-      rgba(245, 246, 243, 0.94) 0%,
-      rgba(245, 246, 243, 0.7) 14%,
-      rgba(245, 246, 243, 0) 30%
-    );
 }
 .lp-hero-inner {
   position: relative;
-  height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 100px 20px 24px;
+  padding: 108px var(--gutter) 32px;
 }
 .lp-hero-text {
   max-width: 540px;
@@ -522,22 +559,8 @@ html:has(.lp) {
 }
 @media (min-width: 720px) {
   .lp-hero-media {
-    top: 38%;
-  }
-  .lp-hero-shade {
-    background:
-      linear-gradient(
-        180deg,
-        #edf3f5 0%,
-        #edf3f5 38%,
-        rgba(237, 243, 245, 0) 48%
-      ),
-      linear-gradient(
-        0deg,
-        rgba(245, 246, 243, 0.94) 0%,
-        rgba(245, 246, 243, 0.7) 14%,
-        rgba(245, 246, 243, 0) 30%
-      );
+    width: min(80%, 620px);
+    margin: 40px 0;
   }
   .lp-hero-inner {
     padding: 112px 24px 32px var(--hero-left);
@@ -546,35 +569,24 @@ html:has(.lp) {
 @media (min-width: 1180px) {
   .lp-hero {
     height: 100svh;
-    min-height: 640px;
+    min-height: 740px;
   }
   .lp-hero-media {
-    top: 0;
-  }
-  .lp-hero-media img {
-    object-position: 0% 58%;
-  }
-  .lp-hero-shade {
-    background:
-      linear-gradient(
-        180deg,
-        rgba(243, 246, 247, 0.55) 0px,
-        rgba(243, 246, 247, 0) 140px
-      ),
-      linear-gradient(
-        90deg,
-        rgba(243, 246, 247, 0.86) 0%,
-        rgba(243, 246, 247, 0.62) 30%,
-        rgba(243, 246, 247, 0.26) 50%,
-        rgba(243, 246, 247, 0) 65%
-      );
+    position: absolute;
+    top: 50%;
+    right: max(var(--gutter), calc((100vw - 1440px) / 2 + var(--gutter)));
+    width: min(44vw, 660px);
+    aspect-ratio: 1.15;
+    margin: 0;
+    transform: translateY(-50%);
   }
   .lp-hero-inner {
+    height: 100%;
     justify-content: center;
     padding: 124px 24px 64px var(--hero-left);
   }
   .lp-hero-text {
-    max-width: min(540px, 42vw);
+    max-width: min(540px, 40vw);
   }
   .lp-only-full {
     display: flex;
@@ -1135,28 +1147,24 @@ html:has(.lp) {
   position: relative;
   height: max(220px, 28vh);
   overflow: hidden;
-  background: #d9e8ee;
+  background:
+    radial-gradient(
+      ellipse at 50% 45%,
+      rgba(95, 211, 154, 0.12),
+      transparent 70%
+    ),
+    #103e2e;
   flex: none;
 }
-.si-aside img {
+.si-aside .welcome-visual {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 34% 45%;
-  transform: scaleX(-1);
-}
-.si-aside-shade {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(245, 246, 243, 0.55) 0%,
-    rgba(245, 246, 243, 0) 22%,
-    rgba(245, 246, 243, 0) 62%,
-    rgba(245, 246, 243, 0.82) 100%
-  );
+  top: 58%;
+  left: 50%;
+  width: min(84%, 360px);
+  height: 190px;
+  border-radius: 0;
+  background: transparent;
+  transform: translate(-50%, -50%);
 }
 .si-aside-content {
   position: absolute;
@@ -1171,13 +1179,16 @@ html:has(.lp) {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--ink);
+  color: #f1faf5;
+}
+.si-brand:focus-visible {
+  outline-color: #b6f3d3;
 }
 .si-brand .lp-brand-rule {
-  background: rgba(16, 24, 20, 0.3);
+  background: rgba(241, 250, 245, 0.3);
 }
 .si-brand .lp-brand-sub {
-  color: var(--soft);
+  color: #b6d8c6;
 }
 .si-tagline {
   display: none;
@@ -1186,7 +1197,7 @@ html:has(.lp) {
   font-weight: 600;
   letter-spacing: -0.04em;
   max-width: 460px;
-  color: var(--ink);
+  color: #f1faf5;
   text-wrap: balance;
 }
 .si-main {
@@ -1369,8 +1380,10 @@ html:has(.lp) {
     flex: 0 0 58%;
     height: 100vh;
   }
-  .si-aside img {
-    object-position: 6% 72%;
+  .si-aside .welcome-visual {
+    top: 46%;
+    width: min(92%, 660px);
+    height: min(60vh, 540px);
   }
   .si-aside-content {
     padding: 40px 48px 48px;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { WelcomeVisual } from '../../components/welcome-visual';
 import '../../landing.css';
 
 const FAQ: [string, string][] = [
@@ -22,8 +23,6 @@ const FAQ: [string, string][] = [
 ];
 
 const GET_STARTED = '/sign-in?mode=create';
-const HERO_ALT =
-  'White tooth model beside a dental mirror and probe on a bright clinical surface';
 
 function Brand() {
   return (
@@ -283,10 +282,6 @@ export function LandingPage() {
 
       <main id="top">
         <section className="lp-hero" aria-labelledby="hero-h">
-          <div className="lp-hero-media">
-            <img src="/assets/welcome.jpg" alt={HERO_ALT} />
-          </div>
-          <div className="lp-hero-shade" aria-hidden="true" />
           <div className="lp-hero-inner">
             <div className="lp-hero-text">
               <div className="lp-eyebrow">DENTAL COST CLARITY</div>
@@ -309,6 +304,9 @@ export function LandingPage() {
                 Estimates only. Your dentist and insurer determine final
                 treatment and costs.
               </p>
+            </div>
+            <div className="lp-hero-media">
+              <WelcomeVisual />
             </div>
             <div className="lp-hero-stacked lp-below-full">
               <div className="lp-hero-cta">

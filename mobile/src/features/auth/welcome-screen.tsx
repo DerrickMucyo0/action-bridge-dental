@@ -2,22 +2,21 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Lock, Mail } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { AccessibilityInfo, Image, Pressable, ScrollView, View, useWindowDimensions, type TextInput } from 'react-native';
+import { AccessibilityInfo, Pressable, ScrollView, View, useWindowDimensions, type TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { BrandLockup } from '../../components/brand';
 import { AppText, Button, Notice, PasswordField, TextField } from '../../components/ui';
 import { useTheme } from '../../theme/theme';
 import { fonts, layout, space } from '../../theme/tokens';
 import { useAuth } from './auth-context';
 import { MISSING_CREDENTIALS, signInErrorView, welcomeNote, type SignInErrorView } from './auth-messages';
-import { welcomeImage } from './welcome-image';
+import { WelcomeVisual } from './welcome-visual';
 
 const NEW_PASSWORD_RULE = 'At least 12 characters, with upper and lower case letters and a number.';
 const SHEET_RADIUS = 28;
 
 /**
- * Welcome and sign-in in one screen: photo on top, the form on a curved sheet below.
+ * Welcome and sign-in in one screen: original bridge visual above a curved form sheet.
  * Accounts are admin-created (D-15), including the first-sign-in new-password step.
  */
 export function WelcomeScreen() {
@@ -61,34 +60,14 @@ export function WelcomeScreen() {
   );
 }
 
-/** Full-bleed photo, with a soft shade at the top so the status bar stays readable. */
+/** The dark decorative header keeps the light status bar readable in either theme. */
 function Hero() {
-  const { colors } = useTheme();
   const { height } = useWindowDimensions();
   const heroHeight = Math.round(Math.min(380, Math.max(220, height * 0.36))) + SHEET_RADIUS;
 
   return (
-    <View style={{ height: heroHeight, backgroundColor: colors.surfaceMuted }}>
-      {welcomeImage ? (
-        <Image
-          source={welcomeImage.source}
-          accessibilityLabel={welcomeImage.alt}
-          accessibilityRole="image"
-          resizeMode="cover"
-          style={{ width: '100%', height: '100%' }}
-        />
-      ) : null}
-      <View aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 96, pointerEvents: 'none' }}>
-        <Svg width="100%" height="100%">
-          <Defs>
-            <LinearGradient id="heroShade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#000000" stopOpacity={0.35} />
-              <Stop offset="1" stopColor="#000000" stopOpacity={0} />
-            </LinearGradient>
-          </Defs>
-          <Rect width="100%" height="100%" fill="url(#heroShade)" />
-        </Svg>
-      </View>
+    <View style={{ height: heroHeight }}>
+      <WelcomeVisual />
     </View>
   );
 }

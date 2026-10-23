@@ -54,6 +54,12 @@ that every secret or personal detail has been found, nor a test of credential va
 
 ## Image rights and provenance
 
+Current working-tree update: the welcome photograph has been replaced by original
+CSS/native UI bridge visuals, and both `welcome.jpg` files have been removed.
+The records below and earlier QA results are retained as historical evidence.
+Historical welcome-image removal is still required before publishing retained Git
+history; the other image-rights questions below remain open.
+
 | Asset                                                                                | Current evidence and required decision                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `web/public/assets/welcome.jpg` and the identical `mobile/assets/images/welcome.jpg` | The [web attribution notes](../web/README.md#asset-attribution) explicitly leave the source and license unresolved. Record the source, permitted redistribution/use and required credit, or replace/remove the image with authorization before release. |

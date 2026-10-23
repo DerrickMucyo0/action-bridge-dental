@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { WelcomeVisual } from '../../components/welcome-visual';
 import { appConfig as config } from '../../config';
 import { CognitoError } from '../../services/cognito';
 import { useAuth } from '../../state/auth';
@@ -131,8 +132,7 @@ export function SignInPage() {
   return (
     <div className="si">
       <aside className="si-aside">
-        <img src="/assets/welcome.jpg" alt="" />
-        <div className="si-aside-shade" aria-hidden="true" />
+        <WelcomeVisual />
         <div className="si-aside-content">
           <Link
             to="/"

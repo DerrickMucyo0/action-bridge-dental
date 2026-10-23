@@ -121,6 +121,11 @@ Vercel builds from the **repository root** (`vercel.json`): `npm ci && npm run b
 
 This describes the existing setup, not an instruction to deploy during Ticket 14. No comparison deployment or live integration is claimed; cloud or publication work needs separate authorization and settled redistribution rights.
 
+The current landing and sign-in headers use an original CSS visual in
+`src/components/welcome-visual.tsx`. The welcome photograph has been removed from
+the working tree; the existing attribution records below are retained for history
+review. Historical image cleanup is still pending.
+
 ## Asset attribution
 
 - Login photo (tooth and mirror): shared with the mobile app (`mobile/assets/images/welcome.jpg`), served from `public/assets/welcome.jpg`. Source and license still to be recorded before release.
