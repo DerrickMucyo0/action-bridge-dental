@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { comparePlans } from '@actionbridge/benefits-engine';
 import {
   PlanComparisonRequestSchema,
+  PlanComparisonResultSchema,
   type DentalCase,
   type PlanComparisonRequest,
 } from '@actionbridge/contracts';
@@ -305,6 +306,222 @@ test('renders both real engine estimates and their returned patient-cost differe
     output.getByRole('button', { name: 'Print / Save as PDF', exact: true }),
   ).toHaveCount(0);
   await expect(page.locator('.comparison-print-root')).toHaveCount(0);
+});
+
+test('exhausted annual maximums remain independent for each entered plan', async ({
+  page,
+}) => {
+  const api = await openComparison(page);
+  const source = structuredClone([...api.cases.values()][0]!);
+  await completePlans(page);
+  const aYear = group(page, 'Plan A').getByRole('group', {
+    name: 'Benefit year 1',
+    exact: true,
+  });
+  const bYear = group(page, 'Plan B').getByRole('group', {
+    name: 'Benefit year 1',
+    exact: true,
+  });
+  await aYear.getByLabel('Insurer already paid', { exact: true }).fill('800');
+  let returned = page.waitForResponse(comparisonRoute);
+  await submit(page).click();
+  const exhaustedA = PlanComparisonResultSchema.parse(
+    await (await returned).json(),
+  );
+  await expect(
+    breakdown(page, 'Plan A', 'Current plan').getByRole('definition'),
+  ).toHaveText(['$1,500 USD', '$0 USD', '$0 USD', '$1,500 USD']);
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(['$300 USD', '$1,200 USD', '$0 USD', '$1,500 USD']);
+  expect(exhaustedA.planA.estimate).toMatchObject({
+    status: 'estimated',
+    totals: { patientPaysCents: 150000, insurerPaysCents: 0 },
+  });
+  expect(exhaustedA.planBMinusPlanACents).toBe(-120000);
+
+  // Reversing which plan is exhausted must not reuse the other plan's balance.
+  await aYear.getByLabel('Insurer already paid', { exact: true }).fill('500');
+  await bYear.getByLabel('Insurer already paid', { exact: true }).fill('2000');
+  returned = page.waitForResponse(comparisonRoute);
+  await submit(page).click();
+  const exhaustedB = PlanComparisonResultSchema.parse(
+    await (await returned).json(),
+  );
+  await expect(
+    breakdown(page, 'Plan A', 'Current plan').getByRole('definition'),
+  ).toHaveText(['$1,200 USD', '$300 USD', '$0 USD', '$1,500 USD']);
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(['$1,500 USD', '$0 USD', '$0 USD', '$1,500 USD']);
+  expect(exhaustedB.planB.estimate).toMatchObject({
+    status: 'estimated',
+    totals: { patientPaysCents: 150000, insurerPaysCents: 0 },
+  });
+  expect(exhaustedB.planBMinusPlanACents).toBe(30000);
+  const sent = comparisons(api).map((request) =>
+    PlanComparisonRequestSchema.parse(request.body),
+  );
+  expect(sent).toHaveLength(2);
+  expect(sent[0]!.planA.planYears['py-2026']).toMatchObject({
+    annualMaximumCents: 80000,
+    insurerAlreadyPaidCents: 80000,
+  });
+  expect(sent[0]!.planB.planYears['benefit-year-1']).toMatchObject({
+    annualMaximumCents: 200000,
+    insurerAlreadyPaidCents: 0,
+  });
+  expect(sent[1]!.planA.planYears['py-2026']!.insurerAlreadyPaidCents).toBe(
+    50000,
+  );
+  expect(
+    sent[1]!.planB.planYears['benefit-year-1']!.insurerAlreadyPaidCents,
+  ).toBe(200000);
+  expect([...api.cases.values()]).toEqual([source]);
+});
+
+test('independent noncalendar benefit years keep the shared schedule and reset each plan separately', async ({
+  page,
+}) => {
+  const api = await openComparison(page);
+  const source = structuredClone([...api.cases.values()][0]!);
+  await completePlans(page);
+  const b = group(page, 'Plan B');
+  const first = b.getByRole('group', { name: 'Benefit year 1', exact: true });
+  await first
+    .getByLabel('Benefit year starts', { exact: true })
+    .fill('2025-11-11');
+  await first
+    .getByLabel('Benefit year ends', { exact: true })
+    .fill('2026-11-10');
+  await first.getByLabel('Annual deductible', { exact: true }).fill('50');
+  await b
+    .getByRole('button', { name: 'Add benefit year', exact: true })
+    .click();
+  const second = b.getByRole('group', { name: 'Benefit year 2', exact: true });
+  await second
+    .getByLabel('Benefit year starts', { exact: true })
+    .fill('2026-11-11');
+  await second
+    .getByLabel('Benefit year ends', { exact: true })
+    .fill('2027-11-10');
+  for (const [label, dollars] of [
+    ['Annual insurer maximum', '2000'],
+    ['Annual deductible', '50'],
+    ['Insurer already paid', '0'],
+    ['Deductible already met', '0'],
+  ] as const)
+    await second.getByLabel(label, { exact: true }).fill(dollars);
+  const returned = page.waitForResponse(comparisonRoute);
+  await submit(page).click();
+  const result = PlanComparisonResultSchema.parse(
+    await (await returned).json(),
+  );
+  await expect(
+    breakdown(page, 'Plan A', 'Current plan').getByRole('definition'),
+  ).toHaveText(['$1,200 USD', '$300 USD', '$0 USD', '$1,500 USD']);
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(['$380 USD', '$1,120 USD', '$0 USD', '$1,500 USD']);
+  expect(result.planBMinusPlanACents).toBe(-82000);
+  expect(result.planA.estimate.status).toBe('estimated');
+  expect(result.planB.estimate.status).toBe('estimated');
+  if (
+    result.planA.estimate.status !== 'estimated' ||
+    result.planB.estimate.status !== 'estimated'
+  )
+    throw new Error('Both fictional plans should be complete.');
+  expect(result.planA.estimate.lines.map((line) => line.planYearId)).toEqual([
+    'py-2026',
+    'py-2026',
+    'py-2026',
+  ]);
+  expect(result.planB.estimate.lines.map((line) => line.planYearId)).toEqual([
+    'benefit-year-1',
+    'benefit-year-2',
+    'benefit-year-2',
+  ]);
+  expect(
+    result.planB.estimate.lines.map((line) => line.deductibleAppliedCents),
+  ).toEqual([5000, 5000, 0]);
+  const request = PlanComparisonRequestSchema.parse(comparisons(api)[0]!.body);
+  expect(request.treatment.schedule).toEqual(sourceTreatment(source).schedule);
+  expect(request.planA.planYears).toEqual(source.planYears);
+  expect(request.planB.planYears['benefit-year-1']).toMatchObject({
+    startDate: '2025-11-11',
+    endDate: '2026-11-10',
+  });
+  expect(request.planB.planYears['benefit-year-2']).toMatchObject({
+    startDate: '2026-11-11',
+    endDate: '2027-11-10',
+  });
+  expect(result.planA.estimate.schedule).toEqual(request.treatment.schedule);
+  expect(result.planB.estimate.schedule).toEqual(request.treatment.schedule);
+  expect([...api.cases.values()]).toEqual([source]);
+});
+
+test('contradictory entered plan facts clear prior results without a request and can be corrected', async ({
+  page,
+}) => {
+  const api = await openComparison(page);
+  const source = structuredClone([...api.cases.values()][0]!);
+  await completePlans(page);
+  await submit(page).click();
+  const output = results(page);
+  await expect(output.getByRole('figure')).toHaveCount(2);
+  await expect(
+    output.getByRole('button', { name: 'Print / Save as PDF', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Save comparison', exact: true }),
+  ).toBeVisible();
+  const first = PlanComparisonRequestSchema.parse(comparisons(api)[0]!.body);
+  const requestsBefore = api.requests.length;
+  const b = group(page, 'Plan B');
+  await b.getByLabel('Insurer already paid', { exact: true }).fill('2000.01');
+  await submit(page).click();
+  await expect(
+    page.getByText(
+      'Plan B: insurer payments already made exceed the annual maximum.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(output.getByRole('figure')).toHaveCount(0);
+  await expect(output).not.toContainText('costs an estimated');
+  await expect(
+    output.getByRole('button', { name: 'Print / Save as PDF', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Save comparison', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator('.comparison-print-root')).toHaveCount(0);
+  expect(api.requests.slice(requestsBefore)).toEqual([]);
+  await expect(
+    group(page, 'Plan A')
+      .getByRole('group', { name: 'Benefit year 1', exact: true })
+      .getByLabel('Insurer already paid', { exact: true }),
+  ).toHaveValue('500');
+
+  await b.getByLabel('Insurer already paid', { exact: true }).fill('0');
+  const returned = page.waitForResponse(comparisonRoute);
+  await submit(page).click();
+  const result = PlanComparisonResultSchema.parse(
+    await (await returned).json(),
+  );
+  await expect(output.getByRole('figure')).toHaveCount(2);
+  await expect(
+    breakdown(page, 'Plan B', 'Fictional Beta').getByRole('definition'),
+  ).toHaveText(['$300 USD', '$1,200 USD', '$0 USD', '$1,500 USD']);
+  expect(result.planB.estimate).toMatchObject({
+    status: 'estimated',
+    totals: { patientPaysCents: 30000, insurerPaysCents: 120000 },
+  });
+  expect(comparisons(api)).toHaveLength(2);
+  expect(
+    PlanComparisonRequestSchema.parse(comparisons(api)[1]!.body).planA,
+  ).toEqual(first.planA);
+  expect([...api.cases.values()]).toEqual([source]);
+  expect([...api.comparisons.values()].flat()).toEqual([]);
 });
 
 test('preserves an unsupported plan independently and withholds the cost difference', async ({
