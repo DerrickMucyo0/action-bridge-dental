@@ -15,7 +15,7 @@ The hosted link below belongs to the original project. Local verification of the
 | 📱 **Mobile app**     | Expo (iOS and Android) — [run it in 2 minutes](#run-the-mobile-app)        |
 | 📄 **Demo documents** | [`docs/demo/`](docs/demo/) — fictional estimate and plan summary to upload |
 
-> **Private access:** Ask the project administrator for an individually provisioned demo account through a private channel. Do not publish login credentials or enter real personal or health information. Previously published shared credentials require administrator rotation if they may still be active.
+> **Account access:** This branch adds **Create account**, email verification and password recovery through Cognito. Public signup requires a separately approved stage configuration and is disabled by default in the infrastructure template; this change does not enable signup on the hosted demo. See the [registration and deployment checklist](docs/PUBLIC_REGISTRATION.md). Use fictional dental data only; do not publish credentials or enter real personal or health information. Previously published shared credentials require administrator rotation if they may still be active.
 
 ---
 

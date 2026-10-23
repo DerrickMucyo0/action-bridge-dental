@@ -21,7 +21,7 @@ On Windows PowerShell, use `npm.cmd` if needed and `Copy-Item web/.env.example w
 npm run dev:web
 ```
 
-This root script builds the shared contracts and engine and starts Vite at **http://127.0.0.1:5173/**. When dependencies are already installed, no reinstall is needed. Choose **Sign in** and use an account provided privately by the team administrator. A first sign-in may ask for a new password. A configured HTTPS API, Cognito client and permitted browser origin are required for interactive backend operations; these commands do not provision them.
+This root script builds the shared contracts and engine and starts Vite at **http://127.0.0.1:5173/**. When dependencies are already installed, no reinstall is needed. Choose **Create account** to register and confirm your email on a stage with public registration enabled, or **Sign in** with an existing account. Admin-created accounts may still ask for a new password on first sign-in. A configured HTTPS API, Cognito client and permitted browser origin are required for interactive backend operations; these commands do not provision them.
 
 ### Settings (public, not secrets)
 
@@ -34,6 +34,12 @@ This root script builds the shared contracts and engine and starts Vite at **htt
 These are embedded in the built site. They are the same values as the mobile app's `EXPO_PUBLIC_*` settings. A missing or malformed value shows a configuration error on the sign-in page, never sample data.
 
 The API accepts browser calls only from configured origins in the stack's `WebOrigins` parameter (CORS), including the configured Vercel site, `http://localhost:5173` and `http://127.0.0.1:5173`. Origin changes require an infrastructure update.
+
+## Account registration
+
+`/sign-in?mode=create` accepts email, password and password confirmation, then asks for the email verification code. Cognito controls account creation, confirmation, resend limits and password recovery; unconfirmed users must verify before signing in. Existing sign-in, first-sign-in password changes and forgot-password routes remain available. Registration does not create an admin account or grant access to another user's cases.
+
+Self-registration remains **disabled by default in the infrastructure template**. The feature needs a separately reviewed Cognito configuration and staging verification; this branch does not change an AWS user pool or deploy the site. See [public registration and production deployment checklist](../docs/PUBLIC_REGISTRATION.md) for the required Cognito settings, email-delivery limits, Vercel configuration and release checks.
 
 ## Journey
 
@@ -82,7 +88,7 @@ These are automated demonstrations: the browser follows the test and normally cl
 
 - `src/config.ts`: public settings.
 - `src/services/api.ts`: typed API client (every response validated against `@actionbridge/contracts`) and S3 upload.
-- `src/services/cognito.ts`: sign-in, first-sign-in password, refresh and revoke.
+- `src/services/cognito.ts`: registration, email confirmation/resend, sign-in, password recovery, first-sign-in password, refresh and revoke.
 - `src/state/auth.tsx`: session and the API client.
 - `src/state/case-store.tsx`: current case, edits (PATCH with expected revision), results per revision, saved plan.
 - `src/state/use-job.ts`: assistant job polling.
@@ -117,7 +123,9 @@ The documented **QA run on 2026-10-22**, baseline **`89663c6`**, recorded **487 
 
 ## Original deployment configuration (Vercel)
 
-Vercel builds from the **repository root** (`vercel.json`): `npm ci && npm run build:web`, output `web/dist`. In the Vercel project, set the three `VITE_*` variables above under Settings → Environment Variables, then redeploy. Pushes to `main` deploy production; other branches get preview URLs. Preview URLs are not in the API's CORS list unless added to `WebOrigins`.
+The checked-in **repository-root** `vercel.json` specifies install `npm ci`, build `npm run build:web`, output `web/dist`, SPA rewrites and security headers. Use the repository root as the Vercel Root Directory; shared packages live outside `web/`. A separate legacy `web/vercel.json` targets output `dist` and is not the recommended root configuration.
+
+This checkout does not establish which repository, branch or environment an existing Vercel project is connected to. Verify its Git integration and Production Branch before any push. A connected project can automatically publish a push to its configured production branch (often `main`); keep this feature branch in Preview with staging API/Cognito values. Configure the three public `VITE_*` variables for that Preview branch, and build again after changing them. Add only the exact approved preview origin to staging `WebOrigins`. See the [deployment checklist](../docs/PUBLIC_REGISTRATION.md) before changing live configuration or publishing.
 
 Comparison deployment and live integration remain unverified. Publication requires the rights holders' authorization.
 

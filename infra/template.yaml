@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   ActionBridge Dental API, Phase 3 vertical slice: cases, estimates and scenarios.
-  Cognito login (admin-created demo users, synthetic data only). Code is pre-bundled by `npm run build:lambda`.
+  Cognito login (synthetic data only; self-registration is disabled by default). Code is pre-bundled by `npm run build:lambda`.
 
 Parameters:
   AppEnv:
@@ -26,6 +26,11 @@ Parameters:
     Type: String
     Default: amazon.nova-2-lite-v1:0
     Description: Foundation model behind the inference profile (IAM scope).
+  EnableSelfRegistration:
+    Type: String
+    AllowedValues: ['false', 'true']
+    Default: 'false'
+    Description: Explicitly opt a reviewed synthetic-data stage into email-confirmed public registration. Does not enable a production release.
   AuthCallbackUrls:
     Type: CommaDelimitedList
     Default: actionbridgedental://auth/callback
@@ -34,6 +39,9 @@ Parameters:
     Type: CommaDelimitedList
     Default: https://action-bridge-dental-web.vercel.app,http://localhost:5173,http://127.0.0.1:5173
     Description: Browser origins allowed to call the API and upload to the private bucket (CORS). Origins only, no paths.
+
+Conditions:
+  PublicRegistrationEnabled: !Equals [!Ref EnableSelfRegistration, 'true']
 
 Globals:
   Function:
@@ -80,9 +88,13 @@ Resources:
       UserPoolName: !Sub actionbridge-dental-${AppEnv}
       UsernameAttributes: [email]
       AutoVerifiedAttributes: [email]
-      # Demo accounts are created by an admin; no public sign-up.
+      # Preserve admin-only accounts by default. Opt-in requires a reviewed stage deployment.
       AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: true
+        AllowAdminCreateUserOnly: !If [PublicRegistrationEnabled, false, true]
+      VerificationMessageTemplate: !If
+        - PublicRegistrationEnabled
+        - DefaultEmailOption: CONFIRM_WITH_CODE
+        - !Ref AWS::NoValue
       Policies:
         PasswordPolicy:
           MinimumLength: 12
@@ -100,7 +112,7 @@ Resources:
     Properties:
       UserPoolId: !Ref UserPool
       ClientName: !Sub actionbridge-dental-mobile-${AppEnv}
-      # Public mobile client: no secret; the app uses authorization code + PKCE.
+      # Shared public mobile/web client: never place a client secret in either app.
       GenerateSecret: false
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows: [code]
@@ -513,7 +525,7 @@ Outputs:
     Description: DynamoDB table holding owner-scoped cases
     Value: !Ref CasesTable
   UserPoolId:
-    Description: Cognito user pool for admin-created demo accounts
+    Description: Cognito user pool (synthetic data only; admin-created accounts unless self-registration is explicitly enabled)
     Value: !Ref UserPool
   UserPoolClientId:
     Description: Public mobile client ID (not a secret). Set as EXPO_PUBLIC_COGNITO_CLIENT_ID.

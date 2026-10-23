@@ -4,9 +4,10 @@ import { WelcomeVisual } from '../../components/welcome-visual';
 import { appConfig as config } from '../../config';
 import { CognitoError } from '../../services/cognito';
 import { useAuth } from '../../state/auth';
+import { PublicAccountForm, type PublicMode } from './public-account-form';
 import '../../landing.css';
 
-type Mode = 'signin' | 'create' | 'forgot';
+type Mode = 'signin' | PublicMode;
 const NEW_PASSWORD_RULE =
   'At least 12 characters, with upper and lower case letters and a number.';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,9 +25,8 @@ function errorMessage(caught: unknown): string {
 }
 
 /**
- * Sign in (design: Sign In v2) with the team's Cognito user pool. Accounts are created by the
- * team for the demo (D-10), so "create account" and "forgot password" explain that instead of
- * offering self-service; first sign-in asks for a new password.
+ * Sign in and self-service accounts use the existing public Cognito client.
+ * Admin-created demo accounts keep the first-sign-in password challenge.
  */
 export function SignInPage() {
   const auth = useAuth();
@@ -34,7 +34,15 @@ export function SignInPage() {
   const [params, setParams] = useSearchParams();
   const requested = params.get('mode');
   const mode: Mode =
-    requested === 'create' || requested === 'forgot' ? requested : 'signin';
+    requested === 'create' ||
+    requested === 'forgot' ||
+    requested === 'verify' ||
+    requested === 'reset'
+      ? requested
+      : 'signin';
+  const [notice, setNotice] = useState<string | null>(null);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [resendAt, setResendAt] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -47,25 +55,45 @@ export function SignInPage() {
     field?: 'email' | 'password' | 'confirmation';
   } | null>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const requestPending = useRef(false);
 
   useEffect(() => {
-    document.title = 'Sign in · ActionBridge Dental';
-  }, []);
+    document.title =
+      (mode === 'signin'
+        ? 'Sign in'
+        : mode === 'create'
+          ? 'Create account'
+          : mode === 'verify'
+            ? 'Verify email'
+            : 'Reset password') + ' · ActionBridge Dental';
+    document.getElementById('si-title')?.focus();
+  }, [mode]);
 
   if (auth.status === 'signed_in') {
     const from = (location.state as { from?: string } | null)?.from;
-    return <Navigate to={from?.startsWith('/') ? from : '/'} replace />;
+    return (
+      <Navigate
+        to={from?.startsWith('/') && !from.startsWith('//') ? from : '/'}
+        replace
+      />
+    );
   }
 
-  const go = (next: Mode) => {
+  const go = (next: Mode, message?: string) => {
+    if (requestPending.current) return;
     setError(null);
+    setNotice(message ?? null);
+    setUnconfirmed(false);
+    setSession(false);
+    setNewPassword('');
+    setConfirmation('');
     setPassword('');
     setParams(next === 'signin' ? {} : { mode: next }, { replace: true });
   };
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || requestPending.current || auth.status === 'restoring') return;
     if (session) {
       if (!meetsPasswordRule(newPassword)) {
         setError({ message: NEW_PASSWORD_RULE, field: 'password' });
@@ -83,6 +111,7 @@ export function SignInPage() {
       passwordRef.current?.focus();
       return;
     }
+    requestPending.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -97,7 +126,12 @@ export function SignInPage() {
       }
     } catch (caught) {
       setError({ message: errorMessage(caught) });
+      setUnconfirmed(
+        caught instanceof CognitoError &&
+          caught.code === 'UserNotConfirmedException',
+      );
     } finally {
+      requestPending.current = false;
       setBusy(false);
     }
   }
@@ -121,11 +155,16 @@ export function SignInPage() {
         },
         create: {
           eyebrow: 'NEW ACCOUNT',
-          title: 'Accounts are set up by our team.',
+          title: 'Create your ActionBridge account.',
         },
+        verify: {
+          eyebrow: 'VERIFY EMAIL',
+          title: 'Verify your email address.',
+        },
+        reset: { eyebrow: 'RESET PASSWORD', title: 'Choose a new password.' },
         forgot: {
           eyebrow: 'RESET PASSWORD',
-          title: 'Ask the team to reset your password.',
+          title: 'Reset your password.',
         },
       }[mode];
 
@@ -156,7 +195,9 @@ export function SignInPage() {
         <div className="si-form-wrap">
           <div className="si-panel">
             <div className="si-eyebrow">{copy.eyebrow}</div>
-            <h1 className="si-title">{copy.title}</h1>
+            <h1 className="si-title" id="si-title" tabIndex={-1}>
+              {copy.title}
+            </h1>
 
             {!config.ok && (
               <p className="si-notice si-alert" role="alert">
@@ -164,9 +205,9 @@ export function SignInPage() {
                 VITE_* settings and rebuild.
               </p>
             )}
-            {config.ok && note && !error && mode === 'signin' && !session && (
+            {config.ok && (notice || note) && !error && !session && (
               <p className="si-notice" role="status">
-                {note}
+                {notice || note}
               </p>
             )}
             {error && (
@@ -241,6 +282,7 @@ export function SignInPage() {
                     <button
                       type="button"
                       className="si-link"
+                      disabled={busy}
                       onClick={() => go('forgot')}
                     >
                       Forgot password?
@@ -265,19 +307,48 @@ export function SignInPage() {
                 <button
                   className="si-submit"
                   type="submit"
-                  disabled={busy || !config.ok}
+                  disabled={busy || !config.ok || auth.status === 'restoring'}
                 >
                   {busy ? 'Signing in…' : 'Sign in'}
                 </button>
               </form>
             ) : (
-              <p className="si-message">
-                {mode === 'create'
-                  ? 'ActionBridge Dental is a demo, so accounts are created by the ActionBridge team. Ask the team for an account, then sign in with the email and temporary password they give you.'
-                  : 'During the demo, passwords are reset by the ActionBridge team. Ask them for a new temporary password, then sign in and choose your own.'}
-              </p>
+              <PublicAccountForm
+                key={mode}
+                mode={mode}
+                email={email}
+                onEmailChange={setEmail}
+                onMode={go}
+                configured={config.ok}
+                resendAt={resendAt}
+                onCooldown={() => setResendAt(Date.now() + 60_000)}
+              />
             )}
 
+            {unconfirmed && mode === 'signin' && (
+              <div className="si-switch">
+                <button
+                  type="button"
+                  className="si-link"
+                  disabled={busy}
+                  onClick={() => go('verify')}
+                >
+                  Verify email
+                </button>
+              </div>
+            )}
+            {!session && (mode === 'signin' || mode === 'create') && (
+              <div className="si-switch">
+                <button
+                  type="button"
+                  className="si-link"
+                  disabled={busy}
+                  onClick={() => go('verify')}
+                >
+                  Already have a verification code?
+                </button>
+              </div>
+            )}
             <div className="si-switch">
               {session ? (
                 <>
@@ -285,6 +356,7 @@ export function SignInPage() {
                   <button
                     type="button"
                     className="si-link"
+                    disabled={busy}
                     onClick={() => {
                       setSession(false);
                       setNewPassword('');
@@ -301,6 +373,7 @@ export function SignInPage() {
                   <button
                     type="button"
                     className="si-link"
+                    disabled={busy}
                     onClick={() => go('create')}
                   >
                     Create an account
@@ -316,6 +389,7 @@ export function SignInPage() {
                   <button
                     type="button"
                     className="si-link"
+                    disabled={busy}
                     onClick={() => go('signin')}
                   >
                     {mode === 'create' ? 'Sign in' : 'Back to sign in'}

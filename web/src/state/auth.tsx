@@ -14,6 +14,7 @@ import {
   CognitoError,
   createCognitoClient,
   type Tokens,
+  type CognitoClient,
 } from '../services/cognito';
 
 /**
@@ -25,7 +26,14 @@ export type Session = { email: string; name: string };
 type Status = 'restoring' | 'signed_out' | 'signed_in';
 type EndReason = 'expired' | 'signed_out';
 
-type AuthStore = {
+type AuthStore = Pick<
+  CognitoClient,
+  | 'signUp'
+  | 'confirmSignUp'
+  | 'resendConfirmationCode'
+  | 'forgotPassword'
+  | 'confirmForgotPassword'
+> & {
   status: Status;
   session: Session | null;
   ended: EndReason | null;
@@ -107,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const end = useCallback((reason: EndReason) => {
+    challenge.current = null;
     tokens.current = null;
     email.current = null;
     store(null);
@@ -162,12 +171,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [getAccessToken, end],
   );
 
+  function requireCognito(): CognitoClient {
+    if (!cognito)
+      throw new CognitoError('CONFIG', 'Account services are not configured.');
+    return cognito;
+  }
   const value: AuthStore = {
     status,
     session,
     ended,
     api,
+    signUp: (address, password) =>
+      requireCognito().signUp(address.trim().toLowerCase(), password),
+    confirmSignUp: (address, code) =>
+      requireCognito().confirmSignUp(address.trim().toLowerCase(), code),
+    resendConfirmationCode: (address) =>
+      requireCognito().resendConfirmationCode(address.trim().toLowerCase()),
+    forgotPassword: (address) =>
+      requireCognito().forgotPassword(address.trim().toLowerCase()),
+    confirmForgotPassword: (address, code, password) =>
+      requireCognito().confirmForgotPassword(
+        address.trim().toLowerCase(),
+        code,
+        password,
+      ),
     signIn: async (address, password) => {
+      challenge.current = null;
       if (!cognito)
         throw new CognitoError('CONFIG', 'Sign-in is not configured.');
       const normalized = address.trim().toLowerCase();
