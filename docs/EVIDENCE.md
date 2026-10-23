@@ -2,7 +2,7 @@
 
 Every claim here points to something you can try or check. Results are what we observed on 2026-10-04.
 
-**Try it:** https://action-bridge-dental-web.vercel.app · login `[REMOVED SHARED LOGIN EMAIL]` / `[REMOVED SHARED LOGIN PASSWORD]` · upload both files in [`docs/demo/`](demo/) · turn on **Voice** in the top bar.
+**Try it:** https://action-bridge-dental-web.vercel.app · obtain an authorized demo account privately from the project owner or administrator · upload both files in [`docs/demo/`](demo/) · turn on **Voice** in the top bar.
 
 ## The challenge, end to end
 
