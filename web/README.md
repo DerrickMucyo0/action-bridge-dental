@@ -2,7 +2,7 @@
 
 Responsive React + TypeScript site for the original ActionBridge Dental application, extended by Derrick Mucyo with a two-plan insurance comparison workflow. The site uses the existing Cognito sign-in, typed API client and benefits estimator. Production comparison figures come from the backend for the case revision on screen; test mocks remain confined to automated tests. See the [project README](../README.md) for original-team credit and contribution boundaries.
 
-The comparison's live HTTPS/Cognito and DynamoDB integration remain unverified. The [Ticket 13 QA report](../docs/PLAN_COMPARISON_QA.md) records the completed local checks and their limits.
+The comparison's live HTTPS/Cognito and DynamoDB integration remain unverified. The [comparison QA report](../docs/PLAN_COMPARISON_QA.md) records the completed local checks and their limits.
 
 ## Run locally
 
@@ -33,7 +33,7 @@ This root script builds the shared contracts and engine and starts Vite at **htt
 
 These are embedded in the built site. They are the same values as the mobile app's `EXPO_PUBLIC_*` settings. A missing or malformed value shows a configuration error on the sign-in page, never sample data.
 
-The API accepts browser calls only from configured origins in the stack's `WebOrigins` parameter (CORS), including the configured Vercel site, `http://localhost:5173` and `http://127.0.0.1:5173`. Any origin change requires an authorized infrastructure update; it is outside this documentation task.
+The API accepts browser calls only from configured origins in the stack's `WebOrigins` parameter (CORS), including the configured Vercel site, `http://localhost:5173` and `http://127.0.0.1:5173`. Origin changes require an infrastructure update.
 
 ## Journey
 
@@ -76,7 +76,7 @@ npm --prefix web test -- saved-plan-comparison.spec.ts --headed --workers=1 --gr
 npm --prefix web test -- plan-comparison-export.spec.ts --headed --workers=1 --grep "report prints authoritative"
 ```
 
-These are automated demonstrations: the browser follows the test and normally closes afterward. Add the existing Playwright `--ui` option instead of `--headed` to select, rerun and inspect tests in its UI. The print tests intercept `window.print()` or generate a Chromium PDF in the test process; they do not demonstrate an OS print dialog. The test server uses port **5174**, which must be free. Missing Playwright browser binaries must be provisioned separately before running these commands; no browser installation is part of Ticket 14.
+These are automated demonstrations: the browser follows the test and normally closes afterward. Add the existing Playwright `--ui` option instead of `--headed` to select, rerun and inspect tests in its UI. The print tests intercept `window.print()` or generate a Chromium PDF in the test process; they do not demonstrate an OS print dialog. The test server uses port **5174**, which must be free. Missing Playwright browser binaries must be provisioned separately before running these commands.
 
 ## Code layout
 
@@ -105,7 +105,7 @@ Use these package build steps to validate an existing checkout without reinstall
 
 Browser coverage includes the original sign-in, sample, document composer, confirmed facts, self-pay, treatment-timing and strategy-saving workflow; independent insurance plans; save/reopen; print export; failed requests; and accessibility/layout checks. Despite its name, `live-app.spec.ts` also uses mocked transport.
 
-The documented **Ticket 13 QA run on 2026-10-22**, baseline **`89663c6`**, recorded **487 root regression tests passed** and **85 browser tests passed**. These are historical results from [the QA report](../docs/PLAN_COMPARISON_QA.md), not tests rerun for Ticket 14. The root `npm run check` covers shared-package/backend TypeScript and package, backend and mobile-logic tests; it does not replace web checks or the separate mobile application typecheck.
+The documented **QA run on 2026-10-22**, baseline **`89663c6`**, recorded **487 root regression tests passed** and **85 browser tests passed**. These are historical results from [the QA report](../docs/PLAN_COMPARISON_QA.md). The root `npm run check` covers shared-package/backend TypeScript and package, backend and mobile-logic tests; it does not replace web checks or the separate mobile application typecheck.
 
 ### Verification limits
 
@@ -119,7 +119,7 @@ The documented **Ticket 13 QA run on 2026-10-22**, baseline **`89663c6`**, recor
 
 Vercel builds from the **repository root** (`vercel.json`): `npm ci && npm run build:web`, output `web/dist`. In the Vercel project, set the three `VITE_*` variables above under Settings → Environment Variables, then redeploy. Pushes to `main` deploy production; other branches get preview URLs. Preview URLs are not in the API's CORS list unless added to `WebOrigins`.
 
-This describes the existing setup, not an instruction to deploy during Ticket 14. No comparison deployment or live integration is claimed; cloud or publication work needs separate authorization and settled redistribution rights.
+Comparison deployment and live integration remain unverified. Publication requires the rights holders' authorization.
 
 The current landing and sign-in headers use an original CSS visual in
 `src/components/welcome-visual.tsx`. The welcome photograph has been removed from

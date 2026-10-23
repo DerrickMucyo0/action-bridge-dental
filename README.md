@@ -7,7 +7,7 @@ ActionBridge is an **agentic, voice-first benefits assistant**. Upload your dent
 > **AI reads. The calculator counts. You confirm.**
 > The AI never does the math, nothing is used until you say "Yes", and treatment is only ever moved within dates your dentist allows.
 
-The hosted link below belongs to the original project. This branch's insurance plan comparison work has not been pushed or deployed; its local verification is described separately below.
+The hosted link below belongs to the original project. Local verification of the insurance plan comparison extension is described below; its live deployment remains unverified.
 
 |                       |                                                                            |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -15,7 +15,7 @@ The hosted link below belongs to the original project. This branch's insurance p
 | 📱 **Mobile app**     | Expo (iOS and Android) — [run it in 2 minutes](#run-the-mobile-app)        |
 | 📄 **Demo documents** | [`docs/demo/`](docs/demo/) — fictional estimate and plan summary to upload |
 
-> **Private access:** Ask the project administrator for an individually provisioned demo account through a private channel. Do not publish login credentials or enter real personal or health information. Previously published shared credentials require administrator rotation if they may still be active; this documentation update does not rotate them or remove them from Git history.
+> **Private access:** Ask the project administrator for an individually provisioned demo account through a private channel. Do not publish login credentials or enter real personal or health information. Previously published shared credentials require administrator rotation if they may still be active.
 
 ---
 
@@ -73,13 +73,13 @@ The local `npm run dev:api` server uses HTTP/demo-header authentication, while t
 
 ### Recorded QA evidence
 
-The [Ticket 13 QA report](docs/PLAN_COMPARISON_QA.md) records **487 root regression tests** and **85 browser tests** passing on **October 22, 2026**, against baseline `89663c6` with the Ticket 13 test additions. It also records TypeScript/build results, accessibility scans, screenshots and limitations. These are recorded Ticket 13 results, not tests newly executed for this documentation update.
+The [comparison QA report](docs/PLAN_COMPARISON_QA.md) records **487 root regression tests** and **85 browser tests** passing on **October 22, 2026**, against baseline `89663c6` with the documented test additions. It also records TypeScript/build results, accessibility scans, screenshots and limitations. These are historical results from that QA run.
 
 Browser API/Cognito transport was mocked and DynamoDB adapter responses were stubbed. **Live HTTPS/Cognito and live DynamoDB integration remain unverified.** Automated accessible-name/axe checks do not establish physical screen-reader or device behavior, and Chromium printing does not verify every browser or native OS print dialog.
 
 ### Fictional interface examples
 
-These authentic screenshots from Ticket 13 use fictional treatment and plan data with mocked API/Cognito transport. They are illustrative software evidence, not real patient estimates or insurer-confirmed coverage.
+These authentic screenshots from the recorded QA run use fictional treatment and plan data with mocked API/Cognito transport. They are illustrative software evidence, not real patient estimates or insurer-confirmed coverage.
 
 ![Desktop comparison showing independent Plan A and Plan B patient costs, insurer payments, contractual write-offs and the returned cost difference.](docs/qa/ticket-13/desktop-comparison.png)
 
@@ -266,7 +266,7 @@ bash infra/scripts/smoke-aws.sh   # live checks: API, agent, documents
 
 ## Original project verification (historical)
 
-The original team's results below are retained as historical project documentation. They were not rerun for Ticket 14 and do not verify this branch against live services. Current comparison evidence is linked in [Recorded QA evidence](#recorded-qa-evidence).
+The original team's results below are retained as historical project documentation and do not verify the comparison extension against live services. Current comparison evidence is linked in [Recorded QA evidence](#recorded-qa-evidence).
 
 | Check                                                                                         | Result                                                                                                 |
 | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |

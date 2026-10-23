@@ -247,5 +247,3 @@ Use one row per verified task; leave empty until evidence exists.
 | T3-05 | Unassigned; coding assistant implemented | in_progress | same | Server side: 400 with field issues, oversized body, unknown route/malformed ID 404, generic 500 without internal detail, `x-request-id` = envelope `requestId`, logs limited to IDs/status/timing (tested) | Mobile offline/timeout/rate-limit display belongs to Phase 4 |
 
 For a new organizer requirement, record: time, exact clarification, authority, affected CH/BN IDs, contract/UI/backend impact, scope cut to pay for it, tests to rerun and approver. Protect the main workflow instead of adding an unbounded feature.
-
-Coding-assistant handoff: Read all five documents and applicable `AGENTS.md`; state the task ID and acceptance target; inspect current code; preserve unrelated work; implement the smallest coherent slice; run checks; report actual outcomes and blockers; never mark unrun tests passed or simulated actions delivered.

@@ -15,7 +15,6 @@ Source files for the "Dental v3" page of the ActionBridge design canvas (Claude 
 
 ## Running it
 These files need the Design canvas runtime (loaded as `support.js`), which is part of the
-Claude Design artifact type and is not included here. To view them, open the canvas in Claude,
-or ask Claude to port the screens into the Expo app (`actionbridge-mobile`).
+Claude Design artifact type and is not included here. To view them, open the canvas in Claude.
 
 Everything is simulated: one synthetic case, no network calls, no real sign-in.

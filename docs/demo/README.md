@@ -24,7 +24,7 @@ The local development API uses HTTP/demo authentication, while the frontend requ
 
 ### Reproducible fictional comparison
 
-The [Ticket 13 capture recipe](../PLAN_COMPARISON_QA.md#screenshot-evidence) uses the existing three-procedure sample for Plan A and the same treatment dates for Plan B. For Plan B, use basic coverage for all three procedures, out-of-network status, 80% insurer payment, deductible-before-coinsurance, all listed services covered, nearest-cent (`half_up_to_cent`) rounding, and no waiting periods, exclusions or frequency restrictions. Basic services count toward the deductible and annual maximum. Its benefit year is 2026-01-01 through 2026-12-31, with a $2,000 maximum, $0 deductible, $0 already paid and $0 deductible met. Fillings have $250 allowed amounts and $0 write-offs each; the crown has an $800.25 allowed amount and $100 write-off. These values are fictional facts entered independently, not suggested defaults for real insurance.
+The [QA capture recipe](../PLAN_COMPARISON_QA.md#screenshot-evidence) uses the existing three-procedure sample for Plan A and the same treatment dates for Plan B. For Plan B, use basic coverage for all three procedures, out-of-network status, 80% insurer payment, deductible-before-coinsurance, all listed services covered, nearest-cent (`half_up_to_cent`) rounding, and no waiting periods, exclusions or frequency restrictions. Basic services count toward the deductible and annual maximum. Its benefit year is 2026-01-01 through 2026-12-31, with a $2,000 maximum, $0 deductible, $0 already paid and $0 deductible met. Fillings have $250 allowed amounts and $0 write-offs each; the crown has an $800.25 allowed amount and $100 write-off. These values are fictional facts entered independently, not suggested defaults for real insurance.
 
 The recorded QA run returned the following figures for that exact recipe; the demo should always display the actual response rather than hardcoding this table:
 
@@ -55,7 +55,7 @@ npm --prefix web test -- plan-comparison-export.spec.ts --headed
 
 The tests control their own browser session and mock setup; manually opening the Vite URL does not attach those mocks. Export tests intercept the browser print action or generate Chromium PDF evidence; they do not demonstrate an operating-system print dialog. If Chromium is absent, browser setup must be completed separately; the commands above do not install a browser or dependencies. No AWS account or real sign-in is needed for these mocked demonstrations.
 
-The [Ticket 13 QA report](../PLAN_COMPARISON_QA.md) records **487 root regression tests and 85 browser tests passed** on **2026-10-22**, against baseline **`89663c6`**. Those are historical results, not tests rerun for this documentation. It also links authentic fictional screenshots. Live HTTPS/Cognito and DynamoDB integration remain unverified; Chromium, viewport and automated accessibility checks do not prove every browser, physical device or assistive technology works.
+The [comparison QA report](../PLAN_COMPARISON_QA.md) records **487 root regression tests and 85 browser tests passed** on **2026-10-22**, against baseline **`89663c6`**. Those are historical results from that QA run. It also links authentic fictional screenshots. Live HTTPS/Cognito and DynamoDB integration remain unverified; Chromium, viewport and automated accessibility checks do not prove every browser, physical device or assistive technology works.
 
 ## Original document-upload and treatment-timing demo
 
@@ -77,7 +77,7 @@ Each fact sits on one line, so the reader returns it whole and the assistant can
 - Benefit year 2026-01-01 to 2026-12-31: annual maximum $800, already paid $500, deductible $50 (none met yet).
 - Plan pays: preventive 100%, basic 80% after the deductible, major 50% after the deductible.
 
-**Historical expected results (original live check, 2026-10-04, three runs in a row after that deploy; not rerun for Ticket 14):**
+**Historical expected results (original live check, 2026-10-04, three runs in a row after that deploy):**
 
 - Six confirmations quoted from the documents: coverage, benefit year, plan rules (including "after the deductible" and "the yearly maximum applies to basic and major"), and the three procedures, all in network, with the crown's timing window (November 12, 2026 to January 15, 2027).
 - One question: _"Will your plan renew on January 1, 2027 with the same yearly maximum ($800) and deductible ($50)?"_ Answer **Yes, the same**.
