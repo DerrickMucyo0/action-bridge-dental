@@ -131,8 +131,13 @@ illustrations in `src/components/landing-illustrations.tsx` and its CSS file.
 They are built from new geometric shapes, without copying or tracing the former
 screenshots, and contain no calculated amounts. The current
 `public/assets/landing/s1.jpg`, `s2.jpg`, `s3.jpg`, and `s5.jpg` files have been
-removed. Copies in the legacy mockup directory and Git history remain unchanged
-and still require a separate publication review.
+removed. The unused `ActionBridge landing page mockups (2)/` and
+`../App mockups in progress/` archives and the standalone
+`../mobile/assets/Glossy Molar and Dental Instruments.png` have also been removed
+from the working tree. The canonical `../mobile/actionbridge-dental-v3/` design
+archive and existing attribution records are retained. Copies in Git history
+still require separate cleanup before publication; working-tree removal does not
+remove historical images.
 
 ## Asset attribution
 

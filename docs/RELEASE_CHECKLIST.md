@@ -63,9 +63,19 @@ history; the other image-rights questions below remain open.
 Current landing-page update: the four `web/public/assets/landing/` placements
 (`s1.jpg`, `s2.jpg`, `s3.jpg`, and `s5.jpg`) now use original geometric React/CSS
 illustrations from `web/src/components/landing-illustrations.tsx` and its CSS file.
-The four public JPEGs have been removed from the working tree. Their historical
-and legacy mockup copies remain unchanged, with publication rights still
-unverified. The table below retains the earlier provenance findings.
+The four public JPEGs have been removed from the working tree. Their copies in
+the unused legacy web mockup archive have also been removed; Git history still
+contains copies with publication rights unverified. The table below retains the
+earlier provenance findings.
+
+Current legacy-asset cleanup: the unused `web/ActionBridge landing page mockups (2)/`
+and `App mockups in progress/` archives and the standalone
+`mobile/assets/Glossy Molar and Dental Instruments.png` have been removed from the
+working tree. The canonical `mobile/actionbridge-dental-v3/` design archive,
+`web/public/brand.svg`, Expo graphics, QA screenshots, contributor credits and
+licenses are retained. Historical image removal remains a separate task; this
+cleanup does not resolve the brand mark's public-redistribution permission or
+other outstanding publication approvals.
 
 | Asset                                                                                | Current evidence and required decision                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
