@@ -60,6 +60,13 @@ The records below and earlier QA results are retained as historical evidence.
 Historical welcome-image removal is still required before publishing retained Git
 history; the other image-rights questions below remain open.
 
+Current landing-page update: the four `web/public/assets/landing/` placements
+(`s1.jpg`, `s2.jpg`, `s3.jpg`, and `s5.jpg`) now use original geometric React/CSS
+illustrations from `web/src/components/landing-illustrations.tsx` and its CSS file.
+The four public JPEGs have been removed from the working tree. Their historical
+and legacy mockup copies remain unchanged, with publication rights still
+unverified. The table below retains the earlier provenance findings.
+
 | Asset                                                                                | Current evidence and required decision                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `web/public/assets/welcome.jpg` and the identical `mobile/assets/images/welcome.jpg` | The [web attribution notes](../web/README.md#asset-attribution) explicitly leave the source and license unresolved. Record the source, permitted redistribution/use and required credit, or replace/remove the image with authorization before release. |

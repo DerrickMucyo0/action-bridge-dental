@@ -126,6 +126,14 @@ The current landing and sign-in headers use an original CSS visual in
 the working tree; the existing attribution records below are retained for history
 review. Historical image cleanup is still pending.
 
+The product and estimate sections use four original, decorative React/CSS
+illustrations in `src/components/landing-illustrations.tsx` and its CSS file.
+They are built from new geometric shapes, without copying or tracing the former
+screenshots, and contain no calculated amounts. The current
+`public/assets/landing/s1.jpg`, `s2.jpg`, `s3.jpg`, and `s5.jpg` files have been
+removed. Copies in the legacy mockup directory and Git history remain unchanged
+and still require a separate publication review.
+
 ## Asset attribution
 
 - Login photo (tooth and mirror): shared with the mobile app (`mobile/assets/images/welcome.jpg`), served from `public/assets/welcome.jpg`. Source and license still to be recorded before release.

@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  DocumentIllustration,
+  EstimateIllustration,
+  ListeningIllustration,
+  PlanIllustration,
+} from '../../components/landing-illustrations';
 import { WelcomeVisual } from '../../components/welcome-visual';
 import '../../landing.css';
 
@@ -139,7 +145,7 @@ export function LandingPage() {
     document.title = 'ActionBridge Dental — Dental cost clarity';
   }, []);
 
-  // Solid header after scrolling; gentle parallax on the phone screenshots.
+  // Solid header after scrolling; gentle parallax on the portrait illustrations.
   useEffect(() => {
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let frame = 0;
@@ -394,22 +400,13 @@ export function LandingPage() {
             <div className="c-7-13">
               <div className="lp-phones">
                 <div className="lp-phone-left" data-parallax="14">
-                  <img
-                    src="/assets/landing/s2.jpg"
-                    alt="ActionBridge recording screen: Tell us about your treatment"
-                  />
+                  <ListeningIllustration />
                 </div>
                 <div className="lp-phone-right" data-parallax="10">
-                  <img
-                    src="/assets/landing/s3.jpg"
-                    alt="ActionBridge photo check screen flagging a blurry estimate photo"
-                  />
+                  <DocumentIllustration />
                 </div>
                 <div className="lp-phone-center">
-                  <img
-                    src="/assets/landing/s5.jpg"
-                    alt="ActionBridge home screen: Let's make sense of your dental costs"
-                  />
+                  <PlanIllustration />
                 </div>
               </div>
             </div>
@@ -496,10 +493,7 @@ export function LandingPage() {
           <div className="lp-wrap lp-grid lp-gap-64 lp-align-center">
             <div className="lp-numbers-media c-1-6">
               <div className="lp-phone-solo" data-parallax="10">
-                <img
-                  src="/assets/landing/s1.jpg"
-                  alt="ActionBridge screen calculating estimated costs step by step"
-                />
+                <EstimateIllustration />
               </div>
               <span className="lp-caption">Sample data · Estimates only</span>
             </div>
