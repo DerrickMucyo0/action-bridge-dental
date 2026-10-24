@@ -10,6 +10,7 @@ import { estimateRoutes } from '../src/features/estimates/estimate-routes.js';
 import { createRouter, type HttpEvent } from '../src/shared/http.js';
 import { InMemoryStore } from '../src/shared/in-memory-store.js';
 import { MAYA } from './helpers.js';
+import type { AuthMode } from '../src/shared/auth.js';
 
 /** A model that replays scripted turns and records every request it receives. */
 export class ScriptedModel implements AgentModel {
@@ -32,7 +33,7 @@ export const toolTurn = (name: string, input: unknown = {}, id = `t-${name}`): M
 export const textTurn = (text: string): ModelTurn => ({ stopReason: 'end_turn', content: [{ text }] });
 export const throttled = () => new ModelError('Model call failed: ThrottlingException', true);
 
-export function createAgentHarness(model: AgentModel, inputs: { uploads?: UploadStore; transcriber?: Transcriber; reader?: DocumentReader } = {}) {
+export function createAgentHarness(model: AgentModel, inputs: { uploads?: UploadStore; transcriber?: Transcriber; reader?: DocumentReader; authMode?: AuthMode } = {}) {
   let ids = 0;
   let tick = 0;
   let requests = 0;
@@ -44,19 +45,20 @@ export function createAgentHarness(model: AgentModel, inputs: { uploads?: Upload
   const jobs = new JobService({ jobs: jobsRepo, queue, cases, maxAttempts: 3, ...clock });
   const runner: JobRunnerDeps = { jobs: jobsRepo, cases: store, model, leaseMs: 120_000, sleep: async () => {}, ...inputs, ...clock };
   const uploads = inputs.uploads ? new UploadService({ cases, uploads: inputs.uploads, ...clock }) : undefined;
-  const router = createRouter({ ...caseRoutes({ cases, authMode: 'demo' }), ...estimateRoutes({ cases, authMode: 'demo' }), ...jobRoutes({ jobs, ...(uploads ? { uploads } : {}), authMode: 'demo' }) });
+  const authMode = inputs.authMode ?? 'demo';
+  const router = createRouter({ ...caseRoutes({ cases, authMode }), ...estimateRoutes({ cases, authMode }), ...jobRoutes({ jobs, ...(uploads ? { uploads } : {}), authMode }) });
 
   return {
     store,
     jobsRepo,
     queue,
     runner,
-    async call(routeKey: string, params: Record<string, string> = {}, body?: unknown, user: string = MAYA) {
+    async call(routeKey: string, params: Record<string, string> = {}, body?: unknown, user: string = MAYA, claims?: Record<string, unknown>) {
       const event: HttpEvent = {
         routeKey,
         pathParameters: params,
         headers: { 'x-demo-user-id': user },
-        requestContext: { requestId: `req-${++requests}` },
+        requestContext: { requestId: `req-${++requests}`, ...(claims ? { authorizer: { jwt: { claims } } } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       };
       const result = await router(event);

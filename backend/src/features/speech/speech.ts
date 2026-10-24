@@ -2,7 +2,8 @@ import { SpeechRequestSchema, type SpeechResponse } from '@actionbridge/contract
 import { SynthesizeSpeechCommand, type PollyClient, type VoiceId } from '@aws-sdk/client-polly';
 import { resolveOwnerId, type AuthMode } from '../../shared/auth.js';
 import { HttpError, jsonResult, parseBody, type RouteHandler } from '../../shared/http.js';
-import { logEvent } from '../../shared/logger.js';
+import { logEvent, safeErrorName } from '../../shared/logger.js';
+import type { StagingControls } from '../../shared/staging-controls.js';
 
 /** Port: turns short text into speech audio. */
 export interface SpeechSynthesizer {
@@ -13,16 +14,18 @@ export interface SpeechSynthesizer {
  * `POST /v1/speech` (accessibility): reads short app text aloud for people who prefer listening.
  * Signed-in users only; text is capped by the contract (1,500 characters) and never stored.
  */
-export function speechRoutes({ synthesizer, authMode }: { synthesizer: SpeechSynthesizer; authMode: AuthMode }): Record<string, RouteHandler> {
+export function speechRoutes({ synthesizer, authMode, staging }: { synthesizer: SpeechSynthesizer; authMode: AuthMode; staging?: StagingControls }): Record<string, RouteHandler> {
   return {
     'POST /v1/speech': async (event) => {
-      resolveOwnerId(event, authMode);
+      const ownerId = resolveOwnerId(event, authMode);
+      staging?.assertAllowed(ownerId);
       const { text } = parseBody(event, SpeechRequestSchema);
+      await staging?.consume(ownerId, 'speech');
       let result: { audio: Uint8Array; voice: string };
       try {
         result = await synthesizer.synthesize(text);
       } catch (error) {
-        logEvent('error', 'speech_failed', { errorName: error instanceof Error ? error.name : 'UnknownError' });
+        logEvent('error', 'speech_failed', { errorName: safeErrorName(error) });
         throw new HttpError('UPSTREAM_UNAVAILABLE', 'Reading aloud isn’t available right now.');
       }
       const body: SpeechResponse = { audioBase64: Buffer.from(result.audio).toString('base64'), contentType: 'audio/mpeg', voice: result.voice };

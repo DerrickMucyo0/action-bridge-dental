@@ -1,0 +1,4 @@
+# Validation tools only; not application/runtime dependencies.
+cfn-lint==1.40.2
+aws-sam-translator==1.115.0
+PyYAML==6.0.3

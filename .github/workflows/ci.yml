@@ -35,6 +35,19 @@ jobs:
       - name: Install mobile dependencies for shared logic tests
         run: npm --prefix mobile ci
 
+      - name: Install isolated infrastructure validation tools
+        run: |
+          python3 -m venv web/.runtime/infra-checks
+          web/.runtime/infra-checks/bin/python -m pip install -r infra/requirements-checks.txt
+
+      - name: Validate both infrastructure identity modes offline
+        env:
+          AWS_EC2_METADATA_DISABLED: "true"
+          AWS_DEFAULT_REGION: us-east-2
+        run: |
+          web/.runtime/infra-checks/bin/cfn-lint --template infra/template.yaml --regions us-east-2
+          web/.runtime/infra-checks/bin/python -m unittest discover -s infra/tests -v
+
       - name: Check shared packages, backend and mobile logic
         run: npm run check
 

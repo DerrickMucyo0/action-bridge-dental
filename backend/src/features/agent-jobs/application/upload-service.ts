@@ -1,4 +1,5 @@
 import { UPLOAD_LIMITS, type CreateUploadRequest, type CreateUploadResponse } from '@actionbridge/contracts';
+import type { StagingControls } from '../../../shared/staging-controls.js';
 import type { CaseService } from '../../cases/application/case-service.js';
 import { uploadKey, type UploadStore } from '../ports.js';
 
@@ -10,11 +11,13 @@ const SLOT_SECONDS = 300;
  */
 export class UploadService {
   constructor(
-    private readonly deps: { cases: CaseService; uploads: UploadStore; newId: () => string; now: () => Date },
+    private readonly deps: { cases: CaseService; uploads: UploadStore; newId: () => string; now: () => Date; staging?: StagingControls },
   ) {}
 
   async create(ownerId: string, caseId: string, request: CreateUploadRequest): Promise<CreateUploadResponse> {
+    this.deps.staging?.assertAllowed(ownerId);
     await this.deps.cases.get(ownerId, caseId); // 404 for an unknown or another user's case
+    await this.deps.staging?.consume(ownerId, 'uploads');
     const uploadId = this.deps.newId();
     const maxBytes = UPLOAD_LIMITS[request.kind].maxBytes;
     const { url, fields } = await this.deps.uploads.presignPost(uploadKey(ownerId, caseId, uploadId), request.mimeType, maxBytes, SLOT_SECONDS);

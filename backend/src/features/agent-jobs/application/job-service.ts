@@ -12,6 +12,7 @@ import {
 import { estimateCase } from '@actionbridge/benefits-engine';
 import { expiresAtFrom } from '../../../shared/dynamo.js';
 import { HttpError } from '../../../shared/http.js';
+import type { StagingControls } from '../../../shared/staging-controls.js';
 import { toEngineInput, type CaseService } from '../../cases/application/case-service.js';
 import { applyGroups, type FactGroup } from '../domain/extraction.js';
 import { applyAnswer, NEXT_YEAR_PATH, skipMarker } from '../domain/adaptive.js';
@@ -25,6 +26,7 @@ export interface JobServiceDeps {
   newId: () => string;
   retentionDays: number | null;
   maxAttempts: number;
+  staging?: StagingControls;
 }
 
 /** Agent jobs API (system design §6): create, view, answer, retry, cancel. Owner-scoped throughout. */
@@ -32,6 +34,7 @@ export class JobService {
   constructor(private readonly deps: JobServiceDeps) {}
 
   async create(ownerId: string, caseId: string, request: CreateJobRequest): Promise<{ jobId: string }> {
+    this.deps.staging?.assertAllowed(ownerId);
     if (request.operation === 'explain') {
       throw new HttpError('BAD_REQUEST', 'This kind of analysis is not available yet.');
     }
@@ -40,6 +43,7 @@ export class JobService {
       throw new HttpError('BAD_REQUEST', 'Upload the recording or document first, then send its documentId.');
     }
     const record = await this.deps.cases.getAtRevision(ownerId, caseId, request.expectedRevision);
+    await this.deps.staging?.consume(ownerId, 'jobs');
     return this.start(ownerId, record.caseId, record.caseRevision, needsUpload ? null : request.input.text?.trim() || null, undefined, {
       operation: request.operation,
       documentId: needsUpload ? (request.input.documentId ?? null) : null,
@@ -56,6 +60,7 @@ export class JobService {
    * follow-up job that decides what to ask or show next. Returns that job's ID.
    */
   async answer(ownerId: string, jobId: string, request: JobAnswersRequest): Promise<{ jobId: string }> {
+    this.deps.staging?.assertAllowed(ownerId);
     const job = await this.load(ownerId, jobId);
     if (job.status !== 'needs_information' || !job.questions) {
       throw new HttpError('REVISION_CONFLICT', 'These questions are no longer open. Reload to see the latest step.');
@@ -136,6 +141,7 @@ export class JobService {
       );
     }
 
+    await this.deps.staging?.consume(ownerId, 'jobs');
     let revision = record.caseRevision;
     const changes = changedSections(before, input);
     if (Object.keys(changes).length > 0 || facts.length > 0) {
@@ -152,9 +158,14 @@ export class JobService {
   }
 
   async retry(ownerId: string, jobId: string): Promise<{ jobId: string }> {
+    this.deps.staging?.assertAllowed(ownerId);
     const job = await this.load(ownerId, jobId);
     if (job.status !== 'failed' || !job.error?.retryable || job.attempt >= job.maxAttempts) {
       throw new HttpError('REVISION_CONFLICT', 'This analysis can’t be retried. Start a new one.');
+    }
+    if (this.deps.staging) {
+      await this.deps.cases.get(ownerId, job.caseId);
+      await this.deps.staging.consume(ownerId, 'jobs');
     }
     const ok = await this.deps.jobs.put({ ...job, status: 'queued', error: null, updatedAt: this.deps.now().toISOString() }, { status: ['failed'] }, this.ttl());
     if (!ok) throw new HttpError('REVISION_CONFLICT', 'This analysis changed. Reload and try again.');
@@ -163,6 +174,7 @@ export class JobService {
   }
 
   async cancel(ownerId: string, jobId: string): Promise<AgentJobView> {
+    this.deps.staging?.assertAllowed(ownerId);
     const job = await this.load(ownerId, jobId);
     if (job.status === 'queued' || job.status === 'running' || job.status === 'needs_information') {
       const cancelled: JobRecord = { ...job, status: 'cancelled', leaseToken: null, leaseUntil: null, updatedAt: this.deps.now().toISOString() };

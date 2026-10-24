@@ -7,9 +7,62 @@ Description: >
 Parameters:
   AppEnv:
     Type: String
-    AllowedValues: [dev, demo]
+    AllowedValues: [dev, demo, staging]
     Default: dev
-    Description: Stage name and APP_ENV. Deploy dev and the stable demo as separate stacks.
+    Description: Stage name and APP_ENV. Deploy dev, demo and restricted staging as separate stacks.
+  ExistingUserPoolId:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[a-z]{2}(-[a-z0-9]+)+-[0-9]_[A-Za-z0-9]+$'
+    Description: Optional existing Cognito pool in this stack region. Supply together with ExistingUserPoolClientId; this stack never manages the supplied resources.
+  ExistingUserPoolClientId:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[A-Za-z0-9]{20,40}$'
+    Description: Optional existing public Cognito client belonging to ExistingUserPoolId. Verify client membership and absence of a secret before deployment.
+  StagingAllowedUserSubs:
+    Type: String
+    Default: ''
+    NoEcho: true
+    MaxLength: 369
+    AllowedPattern: '^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}){0,9}$'
+    Description: Required for staging; 1-10 approved Cognito sub UUIDs, comma-separated without spaces. Never email addresses or tokens.
+  StagingJobDailyLimit:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 100
+    Description: Staging-only per-user UTC-day admission limit; attempted work consumes quota even if processing fails.
+  StagingUploadDailyLimit:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 100
+    Description: Staging-only per-user UTC-day admission limit; attempted work consumes quota even if processing fails.
+  StagingSpeechDailyLimit:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 100
+    Description: Staging-only per-user UTC-day admission limit; attempted work consumes quota even if processing fails.
+  StagingGlobalJobDailyLimit:
+    Type: Number
+    Default: 20
+    MinValue: 1
+    MaxValue: 1000
+    Description: Staging-only global UTC-day admission limit; attempted work consumes quota even if processing fails.
+  StagingGlobalUploadDailyLimit:
+    Type: Number
+    Default: 20
+    MinValue: 1
+    MaxValue: 1000
+    Description: Staging-only global UTC-day admission limit; attempted work consumes quota even if processing fails.
+  StagingGlobalSpeechDailyLimit:
+    Type: Number
+    Default: 60
+    MinValue: 1
+    MaxValue: 1000
+    Description: Staging-only global UTC-day admission limit; attempted work consumes quota even if processing fails.
   RetentionDays:
     Type: Number
     Default: 7
@@ -39,8 +92,33 @@ Parameters:
     Type: CommaDelimitedList
     Default: https://action-bridge-dental-web.vercel.app,http://localhost:5173,http://127.0.0.1:5173
     Description: Browser origins allowed to call the API and upload to the private bucket (CORS). Origins only, no paths.
+  StagingWebOrigins:
+    Type: CommaDelimitedList
+    Default: http://localhost:5173,http://127.0.0.1:5173
+    AllowedPattern: '^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?$|^http://(localhost|127[.]0[.]0[.]1):5173$'
+    ConstraintDescription: Staging origins must be exact HTTPS origins or localhost/127.0.0.1 HTTP origins on port 5173, without paths or wildcards.
+    Description: Staging-only browser origins; local development by default. Add only explicitly approved HTTPS Vercel Preview origins.
+
+Rules:
+  ExistingCognitoParametersTogether:
+    Assertions:
+      - Assert: !Or
+          - !And
+            - !Equals [!Ref ExistingUserPoolId, '']
+            - !Equals [!Ref ExistingUserPoolClientId, '']
+          - !And
+            - !Not [!Equals [!Ref ExistingUserPoolId, '']]
+            - !Not [!Equals [!Ref ExistingUserPoolClientId, '']]
+        AssertDescription: ExistingUserPoolId and ExistingUserPoolClientId must be supplied together or both omitted.
+  StagingRequiresApprovedUsers:
+    RuleCondition: !Equals [!Ref AppEnv, staging]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref StagingAllowedUserSubs, '']]
+        AssertDescription: Staging requires approved Cognito sub UUIDs; an empty list cannot allow public access.
 
 Conditions:
+  IsStaging: !Equals [!Ref AppEnv, staging]
+  UseManagedCognito: !Equals [!Ref ExistingUserPoolId, '']
   PublicRegistrationEnabled: !Equals [!Ref EnableSelfRegistration, 'true']
 
 Globals:
@@ -56,6 +134,13 @@ Globals:
         # Owner = `sub` claim of a Cognito token already checked by the HttpApi JWT authorizer (D-10).
         AUTH_MODE: jwt
         NODE_OPTIONS: --enable-source-maps
+        STAGING_ALLOWED_USER_SUBS: !If [IsStaging, !Ref StagingAllowedUserSubs, !Ref AWS::NoValue]
+        STAGING_JOB_DAILY_LIMIT: !If [IsStaging, !Ref StagingJobDailyLimit, !Ref AWS::NoValue]
+        STAGING_UPLOAD_DAILY_LIMIT: !If [IsStaging, !Ref StagingUploadDailyLimit, !Ref AWS::NoValue]
+        STAGING_SPEECH_DAILY_LIMIT: !If [IsStaging, !Ref StagingSpeechDailyLimit, !Ref AWS::NoValue]
+        STAGING_GLOBAL_JOB_DAILY_LIMIT: !If [IsStaging, !Ref StagingGlobalJobDailyLimit, !Ref AWS::NoValue]
+        STAGING_GLOBAL_UPLOAD_DAILY_LIMIT: !If [IsStaging, !Ref StagingGlobalUploadDailyLimit, !Ref AWS::NoValue]
+        STAGING_GLOBAL_SPEECH_DAILY_LIMIT: !If [IsStaging, !Ref StagingGlobalSpeechDailyLimit, !Ref AWS::NoValue]
 
 Resources:
   CasesTable:
@@ -82,6 +167,7 @@ Resources:
 
   UserPool:
     Type: AWS::Cognito::UserPool
+    Condition: UseManagedCognito
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
@@ -109,6 +195,7 @@ Resources:
 
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
+    Condition: UseManagedCognito
     Properties:
       UserPoolId: !Ref UserPool
       ClientName: !Sub actionbridge-dental-mobile-${AppEnv}
@@ -137,6 +224,7 @@ Resources:
 
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
+    Condition: UseManagedCognito
     Properties:
       UserPoolId: !Ref UserPool
       Domain: !Sub actionbridge-dental-${AppEnv}-${AWS::AccountId}
@@ -151,20 +239,31 @@ Resources:
           CognitoJwt:
             IdentitySource: $request.header.Authorization
             JwtConfiguration:
-              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+              issuer: !If
+                - UseManagedCognito
+                - !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+                - !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${ExistingUserPoolId}
               audience:
-                - !Ref UserPoolClient
+                - !If [UseManagedCognito, !Ref UserPoolClient, !Ref ExistingUserPoolClientId]
       DefaultRouteSettings:
         ThrottlingBurstLimit: 20
         ThrottlingRateLimit: 10
       # The web app calls the API from the browser. API Gateway answers preflight requests itself,
       # before the JWT authorizer; only the listed origins, methods and headers are allowed.
-      CorsConfiguration:
-        AllowOrigins: !Ref WebOrigins
-        AllowMethods: [GET, POST, PATCH, OPTIONS]
-        AllowHeaders: [authorization, content-type, idempotency-key]
-        ExposeHeaders: [x-request-id]
-        MaxAge: 600
+      # SAM treats a nested intrinsic AllowOrigins as an entire CORS object. Select the full
+      # configuration instead so the transformed OpenAPI retains methods, headers and max age.
+      CorsConfiguration: !If
+        - IsStaging
+        - AllowOrigins: !Ref StagingWebOrigins
+          AllowMethods: [GET, POST, PATCH, OPTIONS]
+          AllowHeaders: [authorization, content-type, idempotency-key]
+          ExposeHeaders: [x-request-id]
+          MaxAge: 600
+        - AllowOrigins: !Ref WebOrigins
+          AllowMethods: [GET, POST, PATCH, OPTIONS]
+          AllowHeaders: [authorization, content-type, idempotency-key]
+          ExposeHeaders: [x-request-id]
+          MaxAge: 600
 
   HealthFunction:
     Type: AWS::Serverless::Function
@@ -325,7 +424,7 @@ Resources:
       # content type and key; CORS only lets the allowed web origins make that request.
       CorsConfiguration:
         CorsRules:
-          - AllowedOrigins: !Ref WebOrigins
+          - AllowedOrigins: !If [IsStaging, !Ref StagingWebOrigins, !Ref WebOrigins]
             AllowedMethods: [POST]
             AllowedHeaders: ['*']
             MaxAge: 600
@@ -376,6 +475,16 @@ Resources:
             - Effect: Allow
               Action: polly:SynthesizeSpeech
               Resource: '*'
+        - !If
+          - IsStaging
+          - Statement:
+              - Effect: Allow
+                Action: dynamodb:UpdateItem
+                Resource: !GetAtt CasesTable.Arn
+                Condition:
+                  ForAllValues:StringLike:
+                    dynamodb:LeadingKeys: ['STAGING_QUOTA#*']
+          - !Ref AWS::NoValue
       Events:
         Speech:
           Type: HttpApi
@@ -433,6 +542,8 @@ Resources:
           RETENTION_DAYS: !Ref RetentionDays
           BEDROCK_MODEL_ID: !Ref BedrockModelId
           UPLOAD_BUCKET: !Ref UploadBucket
+          # Underscore separates the stack name (which cannot contain it) from the job ID.
+          TRANSCRIPTION_JOB_PREFIX: !If [IsStaging, !Sub 'actionbridge-${AWS::StackName}_', !Ref AWS::NoValue]
       Policies:
         - Statement:
             - Effect: Allow
@@ -445,28 +556,30 @@ Resources:
               Resource:
                 - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockModelId}
                 - !Sub arn:aws:bedrock:*::foundation-model/${BedrockFoundationModel}
-            # Anthropic models are billed through AWS Marketplace. Bedrock requires exactly these two
-            # actions for the caller (AccessDeniedException text, 2026-10-03). Marketplace actions do not
-            # support resource-level scoping; usage is still limited to the one model by InvokeModel above.
-            - Effect: Allow
-              Action:
-                - aws-marketplace:ViewSubscriptions
-                - aws-marketplace:Subscribe
-              Resource: '*'
+            # Nova needs no Marketplace permissions. Optional third-party model access must be
+            # provisioned by an operator, never subscribed by this runtime execution role.
             # Reads (Transcribe/Textract use these permissions too) and deletes uploads after reading.
             - Effect: Allow
               Action:
                 - s3:GetObject
                 - s3:DeleteObject
               Resource: !Sub ${UploadBucket.Arn}/uploads/*
-            # Transcription and text detection APIs do not support resource-level scoping.
+            # Get/Delete support job ARN scoping. Staging uses its stack-specific job prefix.
+            - Effect: Allow
+              Action:
+                - transcribe:GetTranscriptionJob
+                - transcribe:DeleteTranscriptionJob
+              Resource: !If
+                - IsStaging
+                - !Sub arn:${AWS::Partition}:transcribe:${AWS::Region}:${AWS::AccountId}:transcription-job/actionbridge-${AWS::StackName}_*
+                - !Sub arn:${AWS::Partition}:transcribe:${AWS::Region}:${AWS::AccountId}:transcription-job/actionbridge-*
+            # StartTranscriptionJob and these Textract APIs do not support resource-level scoping.
             - Effect: Allow
               Action:
                 - transcribe:StartTranscriptionJob
-                - transcribe:GetTranscriptionJob
-                - transcribe:DeleteTranscriptionJob
                 - textract:DetectDocumentText
-                # Multi-page PDFs: the asynchronous text-detection API (first pages only).
+                # Multi-page PDFs: asynchronous detection processes the entire document even if
+                # the application reads only the first pages. Admission quotas bound job counts.
                 - textract:StartDocumentTextDetection
                 - textract:GetDocumentTextDetection
               Resource: '*'
@@ -526,16 +639,20 @@ Outputs:
     Value: !Ref CasesTable
   UserPoolId:
     Description: Cognito user pool (synthetic data only; admin-created accounts unless self-registration is explicitly enabled)
-    Value: !Ref UserPool
+    Value: !If [UseManagedCognito, !Ref UserPool, !Ref ExistingUserPoolId]
   UserPoolClientId:
     Description: Public mobile client ID (not a secret). Set as EXPO_PUBLIC_COGNITO_CLIENT_ID.
-    Value: !Ref UserPoolClient
+    Value: !If [UseManagedCognito, !Ref UserPoolClient, !Ref ExistingUserPoolClientId]
   CognitoIssuer:
     Description: Token issuer checked by the API authorizer
-    Value: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+    Value: !If
+      - UseManagedCognito
+      - !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+      - !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${ExistingUserPoolId}
   JobDeadLetterQueueUrl:
     Description: Agent jobs that failed twice in the worker land here for inspection
     Value: !Ref JobDeadLetterQueue
   ManagedLoginDomain:
+    Condition: UseManagedCognito
     Description: Cognito managed login base URL for the mobile PKCE flow
     Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com

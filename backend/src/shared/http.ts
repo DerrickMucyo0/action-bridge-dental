@@ -6,7 +6,7 @@ import {
   type ErrorIssue,
 } from '@actionbridge/contracts';
 import type { z } from 'zod';
-import { logRequest } from './logger.js';
+import { logRequest, safeErrorName } from './logger.js';
 
 /** The subset of an API Gateway HTTP API (payload v2) event the handlers use. */
 export interface HttpEvent {
@@ -102,7 +102,7 @@ export type RouteHandler = (event: HttpEvent) => Promise<HttpResult>;
 
 /**
  * Dispatches by API Gateway route key and converts failures into the shared error envelope.
- * Unexpected errors are logged by name only and returned as a generic 500.
+ * Unexpected errors are logged with an allowlisted classification and returned as a generic 500.
  */
 export function createRouter(routes: Record<string, RouteHandler>): (event: HttpEvent) => Promise<HttpResult> {
   return async (event) => {
@@ -119,7 +119,7 @@ export function createRouter(routes: Record<string, RouteHandler>): (event: Http
         errorCode = error.code;
         result = errorResult(error.code, error.message, requestId, error.issues);
       } else {
-        errorCode = error instanceof Error ? error.name : 'UnknownError';
+        errorCode = safeErrorName(error);
         result = errorResult('INTERNAL', 'Something went wrong on our side. Please try again.', requestId);
       }
     }

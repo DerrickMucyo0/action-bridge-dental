@@ -208,11 +208,11 @@ describe('T3-03 ownership and authentication', () => {
     const api = createTestApi({ authMode: 'jwt' });
     expectError(await api.call(CREATE, { body: fixtureCreateRequest() }), 401, 'UNAUTHENTICATED');
 
-    const created = await api.call(CREATE, { claims: { sub: 'cognito-sub-1' }, body: fixtureCreateRequest() });
+    const created = await api.call(CREATE, { claims: { sub: 'cognito-sub-1', token_use: 'access' }, body: fixtureCreateRequest() });
     expect(created.status).toBe(201);
     const { caseId } = created.body;
-    expect((await api.call(GET, { caseId, claims: { sub: 'cognito-sub-1' } })).body.ownerId).toBe('user:cognito-sub-1');
-    expectError(await api.call(GET, { caseId, claims: { sub: 'cognito-sub-2' } }), 404, 'NOT_FOUND');
+    expect((await api.call(GET, { caseId, claims: { sub: 'cognito-sub-1', token_use: 'access' } })).body.ownerId).toBe('user:cognito-sub-1');
+    expectError(await api.call(GET, { caseId, claims: { sub: 'cognito-sub-2', token_use: 'access' } }), 404, 'NOT_FOUND');
   });
 });
 

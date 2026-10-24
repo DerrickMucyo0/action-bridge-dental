@@ -396,16 +396,16 @@ describe('comparison authentication, ownership and revision checks', () => {
   it('uses JWT ownership and never accepts a demo header as JWT authentication', async () => {
     const api = createTestApi({ authMode: 'jwt' });
     const input = fixtureCreateRequest();
-    const created = await api.call(CREATE, { body: input, claims: { sub: 'comparison-owner' } });
+    const created = await api.call(CREATE, { body: input, claims: { sub: 'comparison-owner', token_use: 'access' } });
     expect(created.status).toBe(201);
     const caseId = created.body.caseId as string;
     const request = comparisonRequest(caseId, input);
 
     expectError(await api.call(COMPARE, { caseId, body: request }), 401, 'UNAUTHENTICATED');
     expectError(await api.call(COMPARE, {
-      caseId, body: request, claims: { sub: 'other-owner' }, headers: { 'x-demo-user-id': MAYA },
+      caseId, body: request, claims: { sub: 'other-owner', token_use: 'access' }, headers: { 'x-demo-user-id': MAYA },
     }), 404, 'NOT_FOUND');
-    const response = await api.call(COMPARE, { caseId, body: request, claims: { sub: 'comparison-owner' } });
+    const response = await api.call(COMPARE, { caseId, body: request, claims: { sub: 'comparison-owner', token_use: 'access' } });
     expect(response.status).toBe(200);
     expect(PlanComparisonResultSchema.parse(response.body).caseId).toBe(caseId);
   });

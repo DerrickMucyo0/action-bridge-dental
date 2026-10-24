@@ -11,6 +11,8 @@ import { S3UploadStore } from '../features/agent-jobs/infrastructure/aws-inputs.
 import { DynamoJobRepository, SqsJobQueue } from '../features/agent-jobs/infrastructure/aws.js';
 import { PollySynthesizer, speechRoutes } from '../features/speech/speech.js';
 import { requireJobQueueUrl, requireTableName, requireUploadBucket } from '../shared/config.js';
+import { StagingControls } from '../shared/staging-controls.js';
+import { DynamoStagingQuotaStore } from '../shared/dynamo-staging-quota-store.js';
 import { composeHandler } from './compose.js';
 import { dynamoServices } from './dynamo.js';
 
@@ -18,6 +20,8 @@ import { dynamoServices } from './dynamo.js';
 export const handler = composeHandler((config) => {
   const documentClient = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
   const cases = dynamoServices(config).cases;
+  const staging = config.staging ? new StagingControls(config.staging, new DynamoStagingQuotaStore(documentClient, requireTableName(config))) : undefined;
+  const controls = staging ? { staging } : {};
   const jobs = new JobService({
     jobs: new DynamoJobRepository(documentClient, requireTableName(config)),
     queue: new SqsJobQueue(new SQSClient({}), requireJobQueueUrl(config)),
@@ -26,11 +30,12 @@ export const handler = composeHandler((config) => {
     newId: randomUUID,
     retentionDays: config.retentionDays,
     maxAttempts: 3,
+    ...controls,
   });
-  const uploads = new UploadService({ cases, uploads: new S3UploadStore(new S3Client({}), requireUploadBucket(config)), newId: randomUUID, now: () => new Date() });
+  const uploads = new UploadService({ ...controls, cases, uploads: new S3UploadStore(new S3Client({}), requireUploadBucket(config)), newId: randomUUID, now: () => new Date() });
   return {
     ...jobRoutes({ jobs, uploads, authMode: config.authMode }),
     // Neural voices aren't offered in us-east-2; Polly runs in us-east-1 (text only, nothing stored).
-    ...speechRoutes({ synthesizer: new PollySynthesizer(new PollyClient({ region: process.env.POLLY_REGION ?? 'us-east-1' })), authMode: config.authMode }),
+    ...speechRoutes({ ...controls, synthesizer: new PollySynthesizer(new PollyClient({ region: process.env.POLLY_REGION ?? 'us-east-1' })), authMode: config.authMode }),
   };
 });

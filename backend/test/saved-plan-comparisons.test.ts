@@ -244,14 +244,14 @@ describe('secure saved two-plan comparisons', () => {
 
   it.each([SAVE, LIST, GET])('authenticates and hides cross-user data for %s', async (route) => {
     const api = createTestApi({ authMode: 'jwt' });
-    const claims = { sub: 'comparison-owner' };
+    const claims = { sub: 'comparison-owner', token_use: 'access' };
     const { caseId, request } = await setup(api, claims);
     const body = { comparison: request, consent: true };
     const saved = await api.call(SAVE, { caseId, claims, headers: HEADERS, body });
     const comparisonId = saved.body.comparison.comparisonId as string;
     const options = { caseId, comparisonId, headers: HEADERS, body, query: QUERY };
     error(await api.call(route, options), 401, 'UNAUTHENTICATED');
-    error(await api.call(route, { ...options, claims: { sub: 'other-owner' }, user: MAYA }), 404, 'NOT_FOUND');
+    error(await api.call(route, { ...options, claims: { sub: 'other-owner', token_use: 'access' }, user: MAYA }), 404, 'NOT_FOUND');
     const mine = await api.call(route, { ...options, claims });
     expect(mine.status).toBe(200);
   });

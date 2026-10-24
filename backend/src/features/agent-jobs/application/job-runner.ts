@@ -10,7 +10,7 @@ import {
 } from '@actionbridge/contracts';
 import { compareCoverage, compareSchedules, estimateCase } from '@actionbridge/benefits-engine';
 import { expiresAtFrom } from '../../../shared/dynamo.js';
-import { logEvent } from '../../../shared/logger.js';
+import { logEvent, safeErrorName } from '../../../shared/logger.js';
 import { toEngineInput } from '../../cases/application/case-service.js';
 import type { CaseRepository } from '../../cases/ports/case-repository.js';
 import { verifiedQuote, type FactGroup } from '../domain/extraction.js';
@@ -29,6 +29,7 @@ export interface JobRunnerDeps {
   leaseMs: number;
   uploads?: UploadStore;
   transcriber?: Transcriber;
+  transcriptionJobPrefix?: string;
   reader?: DocumentReader;
   sleep?: (ms: number) => Promise<void>;
 }
@@ -131,13 +132,12 @@ export async function runJob(deps: JobRunnerDeps, message: { ownerId: string; jo
   } catch (error) {
     if (error instanceof LeaseLost) return 'skipped';
     const retryable = error instanceof ModelError ? error.retryable : true;
-    // ModelError messages are our own fixed text plus the AWS error name (e.g. AccessDeniedException); never user content.
-    const errorName = error instanceof ModelError ? error.message.replace('Model call failed: ', 'Bedrock:') : error instanceof Error ? error.name : 'UnknownError';
+    // Neither SDK exceptions nor ModelError text are safe diagnostic fields.
+    const errorName = safeErrorName(error);
     logEvent('error', 'job_failed', {
       jobId: job.jobId,
       errorName,
       retryable,
-      ...(error instanceof ModelError && error.detail ? { errorDetail: error.detail } : {}),
     });
     await finish('failed', null, null, {
       code: error instanceof ModelError && !retryable ? 'INTERNAL' : 'UPSTREAM_UNAVAILABLE',
@@ -173,7 +173,7 @@ export async function runJob(deps: JobRunnerDeps, message: { ownerId: string; jo
     await report('reading_input', 'started', 'Listening to your recording');
     const upload = await verifiedUpload('audio');
     if (!upload) return;
-    const name = `actionbridge-${job.jobId}`;
+    const name = `${deps.transcriptionJobPrefix ?? 'actionbridge-'}${job.jobId}`;
     try {
       await transcriber.start(name, `s3://${deps.uploads.bucket}/${upload.key}`, upload.type === 'webm' || upload.type === 'ogg' ? upload.type : 'm4a');
     } catch (error) {
@@ -221,8 +221,8 @@ export async function runJob(deps: JobRunnerDeps, message: { ownerId: string; jo
       lines = await reader.readLines(deps.uploads.bucket, upload.key);
     } catch (error) {
       await deps.uploads.remove(upload.key).catch(() => undefined);
-      if (error instanceof Error && /UnsupportedDocument|BadDocument|DocumentTooLarge|InvalidParameter|TextractTimeout/.test(error.name)) {
-        logEvent('warn', 'document_unreadable', { jobId: job.jobId, errorName: error.name });
+      if (error instanceof Error && UNREADABLE_DOCUMENT_ERRORS.has(error.name)) {
+        logEvent('warn', 'document_unreadable', { jobId: job.jobId, errorName: safeErrorName(error) });
         const message =
           error.name === 'TextractTimeout'
             ? 'That document is taking too long to read. Take a photo of the page with the costs, or upload a shorter PDF.'
@@ -380,6 +380,10 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 
 /** A page with no readable text, which a multi-document job skips with a notice. */
 const UNREADABLE = Symbol('unreadable');
+const UNREADABLE_DOCUMENT_ERRORS: ReadonlySet<string> = new Set([
+  'UnsupportedDocumentException', 'BadDocumentException', 'DocumentTooLargeException',
+  'InvalidParameterException', 'TextractTimeout',
+]);
 
 /** One "Is this right?" confirmation per group of proposed facts (`confirm-N` ↔ proposals[N-1]). */
 export function confirmationBlocks(groups: FactGroup[], caseRevision: number, source: 'description' | 'document' = 'description'): MissingFieldBlock[] {

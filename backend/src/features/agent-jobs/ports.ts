@@ -109,7 +109,7 @@ export class ModelError extends Error {
   constructor(
     message: string,
     readonly retryable: boolean,
-    /** AWS's own error text (identifiers such as role and model ARNs, never user content), for diagnostics. */
+    /** Compatibility-only diagnostic field. Never log or expose it; upstream text can contain user data. */
     readonly detail: string | null = null,
   ) {
     super(message);

@@ -1,6 +1,7 @@
 import { loadConfig, type AppConfig } from '../shared/config.js';
 import { createRouter, errorResult, type HttpEvent, type HttpResult, type RouteHandler } from '../shared/http.js';
-import { logEvent } from '../shared/logger.js';
+import { logEvent, safeErrorName } from '../shared/logger.js';
+import { restrictStagingRoutes } from '../shared/staging-controls.js';
 
 /**
  * Builds a Lambda handler once per cold start. A configuration error is logged and every
@@ -10,9 +11,10 @@ export function composeHandler(
   build: (config: AppConfig) => Record<string, RouteHandler>,
 ): (event: HttpEvent) => Promise<HttpResult> {
   try {
-    return createRouter(build(loadConfig(process.env)));
+    const config = loadConfig(process.env);
+    return createRouter(restrictStagingRoutes(config, build(config)));
   } catch (error) {
-    logEvent('error', 'configuration_error', { errorName: error instanceof Error ? error.name : 'UnknownError' });
+    logEvent('error', 'configuration_error', { errorName: safeErrorName(error) });
     return async (event) =>
       errorResult('INTERNAL', 'The service is not configured correctly.', event.requestContext.requestId);
   }

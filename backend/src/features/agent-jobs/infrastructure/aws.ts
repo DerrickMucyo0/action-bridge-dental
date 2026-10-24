@@ -2,6 +2,7 @@ import { BedrockRuntimeClient, ConverseCommand, type ContentBlock as BedrockCont
 import { SendMessageCommand, type SQSClient } from '@aws-sdk/client-sqs';
 import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { isConditionFailure, ttl, type DocumentClient } from '../../../shared/dynamo.js';
+import { safeErrorName } from '../../../shared/logger.js';
 import {
   ModelError,
   type AgentModel,
@@ -113,9 +114,9 @@ export class BedrockAgentModel implements AgentModel {
       const content = (output.output?.message?.content ?? []) as BedrockContent[];
       return { stopReason: output.stopReason ?? 'end_turn', content: content as unknown as ContentBlock[] };
     } catch (error) {
-      const name = error instanceof Error ? error.name : 'UnknownError';
-      const detail = error instanceof Error ? error.message.slice(0, 300) : null;
-      throw new ModelError(`Model call failed: ${name}`, RETRYABLE.has(name), detail);
+      const name = safeErrorName(error);
+      // AWS exception text can echo request details. Retain only a fixed classification.
+      throw new ModelError(`Model call failed: ${name}`, RETRYABLE.has(name));
     }
   }
 }
