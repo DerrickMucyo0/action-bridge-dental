@@ -1,0 +1,50 @@
+{
+  "landing": {
+    "x": 20,
+    "y": 145,
+    "width": 350,
+    "height": 120.796875,
+    "font": "500 38px / 40.28px Geist, system-ui, sans-serif",
+    "color": "rgb(16, 24, 20)"
+  },
+  "landing-full": {
+    "x": 20,
+    "y": 145,
+    "width": 350,
+    "height": 120.796875,
+    "font": "500 38px / 40.28px Geist, system-ui, sans-serif",
+    "color": "rgb(16, 24, 20)"
+  },
+  "product": {
+    "x": 20,
+    "y": -1378,
+    "width": 350,
+    "height": 120.796875,
+    "font": "500 38px / 40.28px Geist, system-ui, sans-serif",
+    "color": "rgb(16, 24, 20)"
+  },
+  "estimate": {
+    "x": 20,
+    "y": -5595,
+    "width": 350,
+    "height": 120.796875,
+    "font": "500 38px / 40.28px Geist, system-ui, sans-serif",
+    "color": "rgb(16, 24, 20)"
+  },
+  "sign-in": {
+    "x": 24,
+    "y": 309.3125,
+    "width": 342,
+    "height": 62.71875,
+    "font": "600 28px / 31.36px Geist, system-ui, sans-serif",
+    "color": "rgb(16, 24, 20)"
+  },
+  "dashboard": {
+    "x": 56,
+    "y": 21.75,
+    "width": 39.5,
+    "height": 17.5,
+    "font": "",
+    "color": "rgb(244, 248, 245)"
+  }
+}

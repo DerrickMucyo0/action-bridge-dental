@@ -1,0 +1,20 @@
+{
+  "desktop": {
+    "dashboardSha256": {
+      "before": "d9039004032955cde577ac81f08acb98d91d6efb9dfd59f74d06010a84b25770",
+      "after": "d9039004032955cde577ac81f08acb98d91d6efb9dfd59f74d06010a84b25770",
+      "reference-evidence": "d9039004032955cde577ac81f08acb98d91d6efb9dfd59f74d06010a84b25770"
+    },
+    "dashboardFilesIdentical": true,
+    "heroHeadingMatchesReference": true
+  },
+  "mobile": {
+    "dashboardSha256": {
+      "before": "e053d7f6abd23893093a0124e18ea47f531847918454f70ac9fa694e2573fb0a",
+      "after": "e053d7f6abd23893093a0124e18ea47f531847918454f70ac9fa694e2573fb0a",
+      "reference-evidence": "e053d7f6abd23893093a0124e18ea47f531847918454f70ac9fa694e2573fb0a"
+    },
+    "dashboardFilesIdentical": true,
+    "heroHeadingMatchesReference": true
+  }
+}

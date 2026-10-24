@@ -288,6 +288,10 @@ export function LandingPage() {
 
       <main id="top">
         <section className="lp-hero" aria-labelledby="hero-h">
+          <div className="lp-hero-media">
+            <WelcomeVisual />
+          </div>
+          <div className="lp-hero-shade" aria-hidden="true" />
           <div className="lp-hero-inner">
             <div className="lp-hero-text">
               <div className="lp-eyebrow">DENTAL COST CLARITY</div>
@@ -310,9 +314,6 @@ export function LandingPage() {
                 Estimates only. Your dentist and insurer determine final
                 treatment and costs.
               </p>
-            </div>
-            <div className="lp-hero-media">
-              <WelcomeVisual />
             </div>
             <div className="lp-hero-stacked lp-below-full">
               <div className="lp-hero-cta">

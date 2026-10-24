@@ -55,14 +55,16 @@ that every secret or personal detail has been found, nor a test of credential va
 ## Image rights and provenance
 
 Current working-tree update: the welcome photograph has been replaced by original
-CSS/native UI bridge visuals, and both `welcome.jpg` files have been removed.
+CSS dental artwork on web and a native UI bridge visual on mobile, and both
+`welcome.jpg` files have been removed.
 The records below and earlier QA results are retained as historical evidence.
 Historical welcome-image removal is still required before publishing retained Git
 history; the other image-rights questions below remain open.
 
 Current landing-page update: the four `web/public/assets/landing/` placements
-(`s1.jpg`, `s2.jpg`, `s3.jpg`, and `s5.jpg`) now use original geometric React/CSS
-illustrations from `web/src/components/landing-illustrations.tsx` and its CSS file.
+(`s1.jpg`, `s2.jpg`, `s3.jpg`, and `s5.jpg`) now use static, decorative UI previews
+from `web/src/components/landing-illustrations.tsx` and its CSS file. These use
+the app's visual language without copying or tracing the former screenshots.
 The four public JPEGs have been removed from the working tree. Their copies in
 the unused legacy web mockup archive have also been removed; Git history still
 contains copies with publication rights unverified. The table below retains the

@@ -169,6 +169,7 @@ export function SignInPage() {
     <div className="si">
       <aside className="si-aside">
         <WelcomeVisual />
+        <div className="si-aside-shade" aria-hidden="true" />
         <div className="si-aside-content">
           <Link
             to="/"

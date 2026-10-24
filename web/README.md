@@ -129,15 +129,17 @@ This checkout does not establish which repository, branch or environment an exis
 
 Comparison deployment and live integration remain unverified. Publication requires the rights holders' authorization.
 
-The current landing and sign-in headers use an original CSS visual in
-`src/components/welcome-visual.tsx`. The welcome photograph has been removed from
+The landing hero and sign-in panel restore the reference layout and pale blue
+palette using a new CSS dental still life in `src/components/welcome-visual.tsx`.
+See the [appearance review](../docs/visual-restoration/README.md) for before/after
+screenshots and verification. The welcome photograph has been removed from
 the working tree; the existing attribution records below are retained for history
 review. Historical image cleanup is still pending.
 
-The product and estimate sections use four original, decorative React/CSS
-illustrations in `src/components/landing-illustrations.tsx` and its CSS file.
-They are built from new geometric shapes, without copying or tracing the former
-screenshots, and contain no calculated amounts. The current
+The product and estimate sections use four static, decorative UI previews in
+`src/components/landing-illustrations.tsx` and its CSS file. They use the existing
+app's dark green palette, branding, orb and controls, without copying or tracing
+the former screenshots, and contain no calculated amounts. The current
 `public/assets/landing/s1.jpg`, `s2.jpg`, `s3.jpg`, and `s5.jpg` files have been
 removed. The unused `ActionBridge landing page mockups (2)/` and
 `../App mockups in progress/` archives and the standalone

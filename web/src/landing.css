@@ -380,20 +380,20 @@ html:has(.lp) {
 
 /* ---- Hero ---------------------------------------------------------------------------- */
 
-/* Original bridge geometry; decorative and static at every viewport size. */
+/* Original CSS dental still life. No photographic or externally sourced assets. */
 :is(.lp, .si) .welcome-visual {
+  --tooth-left: 32%;
+  --tooth-width: 52%;
+  --tooth-height: 55%;
+  --tooth-bottom: 9%;
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 32px;
+  isolation: isolate;
   background:
-    radial-gradient(
-      ellipse at 50% 45%,
-      rgba(95, 211, 154, 0.17),
-      transparent 65%
-    ),
-    linear-gradient(145deg, #184c3b, #0c3026);
+    radial-gradient(ellipse at 82% 16%, #eafaff 0%, transparent 43%),
+    linear-gradient(115deg, #e6eef2 5%, #b8d9e5 58%, #d3e7ed 100%);
   pointer-events: none;
 }
 :is(.lp, .si) .welcome-visual span {
@@ -401,85 +401,232 @@ html:has(.lp) {
   display: block;
   box-sizing: border-box;
 }
-:is(.lp, .si) .welcome-visual-halo {
-  left: 50%;
-  top: 50%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(182, 243, 211, 0.12);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
+:is(.lp, .si) .welcome-window {
+  top: -12%;
+  left: 37%;
+  width: 70%;
+  height: 74%;
+  border: 28px solid rgba(255, 255, 255, 0.5);
+  background: linear-gradient(
+    90deg,
+    #b4dae7,
+    #e6f5fa 45%,
+    #b8dce9 47%,
+    #e4f5fa
+  );
+  filter: blur(18px);
+  transform: rotate(-5deg);
 }
-:is(.lp, .si) .welcome-visual-halo-outer {
-  width: 88%;
-}
-:is(.lp, .si) .welcome-visual-halo-inner {
-  width: 69%;
-  border-color: rgba(182, 243, 211, 0.2);
-}
-:is(.lp, .si) .welcome-visual-arch {
+:is(.lp, .si) .welcome-light {
   top: 24%;
-  left: 23%;
-  width: 54%;
-  height: 50%;
-  border: clamp(5px, 0.75vw, 10px) solid #9be8bf;
-  border-bottom: 0;
-  border-radius: 50% 50% 0 0;
-  filter: drop-shadow(0 0 20px rgba(95, 211, 154, 0.12));
-}
-:is(.lp, .si) .welcome-visual-light {
-  top: 46%;
-  left: 46%;
-  width: 8%;
+  left: 14%;
+  width: 10%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: #d7f8e7;
-  box-shadow: 0 0 36px rgba(155, 232, 191, 0.35);
+  background: rgba(255, 255, 255, 0.9);
+  filter: blur(10px);
+  box-shadow: 0 0 65px 24px rgba(255, 255, 255, 0.45);
 }
-:is(.lp, .si) .welcome-visual-baseline {
-  left: 13%;
-  top: 74%;
-  width: 74%;
-  height: 1px;
-  background: rgba(182, 243, 211, 0.55);
+:is(.lp, .si) .welcome-surface {
+  inset: 64% -10% -10%;
+  background: linear-gradient(180deg, #edf4f7 0%, #d4e2e9 55%, #f4f7f8 100%);
+  box-shadow: 0 -12px 45px rgba(236, 246, 249, 0.85);
 }
-:is(.lp, .si) .welcome-visual-endpoint {
-  top: 74%;
-  width: 8px;
-  height: 8px;
-  border: 1px solid #b6f3d3;
+:is(.lp, .si) .welcome-shadow {
+  left: calc(var(--tooth-left) - 3%);
+  bottom: 11%;
+  width: calc(var(--tooth-width) + 8%);
+  height: 8%;
   border-radius: 50%;
-  background: #184c3b;
-  transform: translate(-50%, -50%);
+  background: rgba(72, 102, 120, 0.24);
+  filter: blur(17px);
 }
-:is(.lp, .si) .welcome-visual-endpoint-left {
-  left: 13%;
+:is(.lp, .si) .welcome-mirror {
+  left: 32%;
+  bottom: 16%;
+  width: 15%;
+  height: 12%;
+  border: clamp(3px, 0.45vw, 7px) solid #93a6b2;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    #f6fbfd 5%,
+    #bfd9e8 48%,
+    #effaff 65%,
+    #b7d4e4
+  );
+  box-shadow:
+    inset 0 0 0 3px #e6edf1,
+    3px 5px 9px rgba(69, 95, 111, 0.22);
+  transform: rotate(-30deg);
 }
-:is(.lp, .si) .welcome-visual-endpoint-right {
-  left: 87%;
+:is(.lp, .si) .welcome-mirror-handle {
+  right: 84%;
+  top: 42%;
+  width: 145%;
+  height: 15%;
+  border-radius: 8px;
+  background: linear-gradient(
+    180deg,
+    #f5fafc,
+    #7f95a4 45%,
+    #c5d2db 70%,
+    #869ba8
+  );
+  box-shadow: 0 5px 6px rgba(69, 95, 111, 0.12);
+}
+:is(.lp, .si) .welcome-tooth {
+  left: var(--tooth-left);
+  bottom: var(--tooth-bottom);
+  width: var(--tooth-width);
+  height: var(--tooth-height);
+  filter: drop-shadow(8px 11px 8px rgba(83, 110, 127, 0.16));
+}
+:is(.lp, .si) .welcome-root {
+  top: 42%;
+  width: 39%;
+  height: 58%;
+  background: linear-gradient(
+    90deg,
+    #d3dce4 0%,
+    #f5f7fa 48%,
+    #fff 72%,
+    #dfe7ee 100%
+  );
+}
+:is(.lp, .si) .welcome-root-left {
+  left: 11%;
+  border-radius: 0 18% 48% 60%;
+  transform: rotate(-9deg);
+}
+:is(.lp, .si) .welcome-root-right {
+  right: 11%;
+  border-radius: 18% 0 60% 48%;
+  transform: rotate(9deg);
+}
+:is(.lp, .si) .welcome-crown {
+  inset: 4% 0 35%;
+  border-radius: 42% 45% 35% 35% / 42% 44% 58% 58%;
+  background:
+    radial-gradient(ellipse at 29% 14%, #fff 0%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(
+      102deg,
+      #c8d3de 0%,
+      #f3f6fa 28%,
+      #fff 58%,
+      #dfe7ef 90%,
+      #c0cfdd 100%
+    );
+  box-shadow:
+    inset 3px 3px 4px rgba(255, 255, 255, 0.9),
+    inset -7px -2px 12px rgba(150, 172, 192, 0.15);
+}
+:is(.lp, .si) .welcome-crown-lobe {
+  top: 0;
+  width: 58%;
+  height: 31%;
+  border-radius: 50% 55% 20% 20%;
+  background: linear-gradient(140deg, #fff 15%, #edf2f7 56%, #d9e2ec 100%);
+  box-shadow: inset 1px 3px 3px #fff;
+}
+:is(.lp, .si) .welcome-crown-lobe-left {
+  left: 0;
+  transform: rotate(-13deg);
+}
+:is(.lp, .si) .welcome-crown-lobe-right {
+  right: 0;
+  transform: rotate(13deg);
+}
+:is(.lp, .si) .welcome-enamel {
+  top: 18%;
+  left: 19%;
+  width: 12%;
+  height: 43%;
+  border-radius: 60%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0)
+  );
+  filter: blur(3px);
+  transform: rotate(-7deg);
+}
+@media (min-width: 1180px) {
+  .lp .welcome-visual {
+    --tooth-left: 49%;
+    --tooth-width: 29%;
+    --tooth-height: 60%;
+    --tooth-bottom: 7.5%;
+  }
+  .lp .welcome-light {
+    left: 90%;
+  }
+  .lp .welcome-mirror {
+    left: 35%;
+    bottom: 10%;
+    width: 12%;
+    height: 13%;
+  }
 }
 
 .lp-hero {
   --hero-left: max(var(--gutter), calc((100vw - 1320px) / 2 + var(--gutter)));
   position: relative;
+  height: 94svh;
+  min-height: 720px;
   overflow: hidden;
-  background: #f1f5f1;
+  background: #edf3f5;
 }
 .lp-hero-media {
-  position: relative;
-  width: min(100%, 540px);
-  aspect-ratio: 1.5;
-  align-self: center;
-  margin: 32px 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 40%;
+  animation: lp-hero-in 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 .lp-hero-media .welcome-visual {
   position: absolute;
   inset: 0;
 }
+@keyframes lp-hero-in {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.lp-hero-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      #edf3f5 0%,
+      #edf3f5 40%,
+      rgba(237, 243, 245, 0) 50%
+    ),
+    linear-gradient(
+      0deg,
+      rgba(245, 246, 243, 0.94) 0%,
+      rgba(245, 246, 243, 0.7) 14%,
+      rgba(245, 246, 243, 0) 30%
+    );
+}
 .lp-hero-inner {
   position: relative;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 108px var(--gutter) 32px;
+  justify-content: space-between;
+  padding: 100px 20px 24px;
 }
 .lp-hero-text {
   max-width: 540px;
@@ -559,8 +706,22 @@ html:has(.lp) {
 }
 @media (min-width: 720px) {
   .lp-hero-media {
-    width: min(80%, 620px);
-    margin: 40px 0;
+    top: 38%;
+  }
+  .lp-hero-shade {
+    background:
+      linear-gradient(
+        180deg,
+        #edf3f5 0%,
+        #edf3f5 38%,
+        rgba(237, 243, 245, 0) 48%
+      ),
+      linear-gradient(
+        0deg,
+        rgba(245, 246, 243, 0.94) 0%,
+        rgba(245, 246, 243, 0.7) 14%,
+        rgba(245, 246, 243, 0) 30%
+      );
   }
   .lp-hero-inner {
     padding: 112px 24px 32px var(--hero-left);
@@ -569,24 +730,32 @@ html:has(.lp) {
 @media (min-width: 1180px) {
   .lp-hero {
     height: 100svh;
-    min-height: 740px;
+    min-height: 640px;
   }
   .lp-hero-media {
-    position: absolute;
-    top: 50%;
-    right: max(var(--gutter), calc((100vw - 1440px) / 2 + var(--gutter)));
-    width: min(44vw, 660px);
-    aspect-ratio: 1.15;
-    margin: 0;
-    transform: translateY(-50%);
+    top: 0;
+  }
+  .lp-hero-shade {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(243, 246, 247, 0.55) 0px,
+        rgba(243, 246, 247, 0) 140px
+      ),
+      linear-gradient(
+        90deg,
+        rgba(243, 246, 247, 0.86) 0%,
+        rgba(243, 246, 247, 0.62) 30%,
+        rgba(243, 246, 247, 0.26) 50%,
+        rgba(243, 246, 247, 0) 65%
+      );
   }
   .lp-hero-inner {
-    height: 100%;
     justify-content: center;
     padding: 124px 24px 64px var(--hero-left);
   }
   .lp-hero-text {
-    max-width: min(540px, 40vw);
+    max-width: min(540px, 42vw);
   }
   .lp-only-full {
     display: flex;
@@ -1137,24 +1306,26 @@ html:has(.lp) {
   position: relative;
   height: max(220px, 28vh);
   overflow: hidden;
-  background:
-    radial-gradient(
-      ellipse at 50% 45%,
-      rgba(95, 211, 154, 0.12),
-      transparent 70%
-    ),
-    #103e2e;
+  background: #d9e8ee;
   flex: none;
 }
 .si-aside .welcome-visual {
+  --tooth-left: 58%;
+  --tooth-width: 28%;
+  --tooth-height: 66%;
   position: absolute;
-  top: 58%;
-  left: 50%;
-  width: min(84%, 360px);
-  height: 190px;
-  border-radius: 0;
-  background: transparent;
-  transform: translate(-50%, -50%);
+  inset: 0;
+}
+.si-aside-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(245, 246, 243, 0.55) 0%,
+    rgba(245, 246, 243, 0) 22%,
+    rgba(245, 246, 243, 0) 62%,
+    rgba(245, 246, 243, 0.82) 100%
+  );
 }
 .si-aside-content {
   position: absolute;
@@ -1169,16 +1340,13 @@ html:has(.lp) {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #f1faf5;
-}
-.si-brand:focus-visible {
-  outline-color: #b6f3d3;
+  color: var(--ink);
 }
 .si-brand .lp-brand-rule {
-  background: rgba(241, 250, 245, 0.3);
+  background: rgba(16, 24, 20, 0.3);
 }
 .si-brand .lp-brand-sub {
-  color: #b6d8c6;
+  color: var(--soft);
 }
 .si-tagline {
   display: none;
@@ -1187,7 +1355,7 @@ html:has(.lp) {
   font-weight: 600;
   letter-spacing: -0.04em;
   max-width: 460px;
-  color: #f1faf5;
+  color: var(--ink);
   text-wrap: balance;
 }
 .si-main {
@@ -1378,9 +1546,17 @@ html:has(.lp) {
     height: 100vh;
   }
   .si-aside .welcome-visual {
-    top: 46%;
-    width: min(92%, 660px);
-    height: min(60vh, 540px);
+    --tooth-left: 21%;
+    --tooth-width: 46%;
+    --tooth-height: 55%;
+    --tooth-bottom: 10%;
+  }
+  .si-aside .welcome-mirror {
+    left: -2%;
+    bottom: 13%;
+  }
+  .si-aside .welcome-light {
+    left: 88%;
   }
   .si-aside-content {
     padding: 40px 48px 48px;

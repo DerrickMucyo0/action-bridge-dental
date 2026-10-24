@@ -7,6 +7,10 @@ export default defineConfig({
   workers: 2,
   use: {
     baseURL: 'http://127.0.0.1:5174',
+    // Use an installed browser when Playwright's bundled Chromium is unavailable.
+    ...(process.env.PLAYWRIGHT_CHANNEL
+      ? { channel: process.env.PLAYWRIGHT_CHANNEL }
+      : {}),
     viewport: { width: 1440, height: 900 },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
