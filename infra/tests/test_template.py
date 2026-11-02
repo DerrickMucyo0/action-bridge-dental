@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SUBJECT = "00000000-0000-4000-8000-000000000001"
 POOL = "us-east-2_Staging01"
 CLIENT = "stagingclient0123456789abcd"
+BOUNDARY = "arn:aws:iam::111122223333:policy/actionbridge/staging/runtime-boundary"
 NO_VALUE = object()
 
 
@@ -131,6 +132,7 @@ def parameters(environment="dev", external=False):
         values.update(ExistingUserPoolId=POOL, ExistingUserPoolClientId=CLIENT)
     if environment == "staging":
         values["StagingAllowedUserSubs"] = SUBJECT
+        values["StagingRuntimePermissionsBoundaryArn"] = BOUNDARY
     return values
 
 
@@ -190,7 +192,72 @@ class InfrastructureRegressionTests(unittest.TestCase):
 
     def test_empty_staging_approval_list_is_rejected(self):
         with self.assertRaises(ValueError):
-            SelectedTemplate(TEMPLATE, {"AppEnv": "staging"})
+            SelectedTemplate(TEMPLATE, {**parameters("staging"), "StagingAllowedUserSubs": ""})
+
+    def test_staging_requires_a_runtime_permissions_boundary(self):
+        for value in (None, ""):
+            values = parameters("staging")
+            if value is None:
+                del values["StagingRuntimePermissionsBoundaryArn"]
+            else:
+                values["StagingRuntimePermissionsBoundaryArn"] = value
+            with self.subTest(boundary=value), self.assertRaisesRegex(ValueError, "runtime permissions boundary"):
+                SelectedTemplate(TEMPLATE, values)
+
+    def test_runtime_boundary_arn_validates_syntax_without_claiming_policy_existence(self):
+        # Parameter validation checks ARN syntax only. IAM checks the policy's
+        # actual existence and same-account requirement when a boundary is set.
+        for value in (BOUNDARY, "arn:aws-us-gov:iam::444455556666:policy/runtime_boundary+=,.@-"):
+            with self.subTest(boundary=value):
+                selected = SelectedTemplate(TEMPLATE, {**parameters("staging"), "StagingRuntimePermissionsBoundaryArn": value})
+                self.assertEqual(selected.parameters["StagingRuntimePermissionsBoundaryArn"], value)
+        invalid = (
+            "arn:aws:iam::111122223333:role/runtime-boundary",
+            "arn:aws:iam::11112222333:policy/runtime-boundary",
+            "arn:aws:iam::111122223333:policy/",
+            "arn:aws:iam::111122223333:policy/path/",
+            "arn:aws:iam::111122223333:policy/path//runtime-boundary",
+            "arn:aws:iam::111122223333:policy/runtime-*",
+            "arn:aws:iam::111122223333:policy/runtime boundary",
+            "arn:aws:iam::111122223333:policy/" + "x" * 129,
+        )
+        for value in invalid:
+            with self.subTest(boundary=value), self.assertRaisesRegex(ValueError, "StagingRuntimePermissionsBoundaryArn"):
+                SelectedTemplate(TEMPLATE, {**parameters("staging"), "StagingRuntimePermissionsBoundaryArn": value})
+
+    def test_generated_runtime_roles_have_staging_boundary_path_and_lambda_only_trust(self):
+        expected_names = {name + "Role" for name, item in TEMPLATE["Resources"].items() if item["Type"] == "AWS::Serverless::Function"}
+        self.assertEqual(len(expected_names), 5)
+        for external in (False, True):
+            with self.subTest(external_identity=external):
+                resources = translated(parameters("staging", external)).section("Resources")
+                roles = {name: item for name, item in resources.items() if item["Type"] == "AWS::IAM::Role"}
+                self.assertEqual(set(roles), expected_names)
+                for name, role in roles.items():
+                    with self.subTest(role=name):
+                        props = role["Properties"]
+                        self.assertEqual(props["PermissionsBoundary"], BOUNDARY)
+                        self.assertEqual(props["Path"], "/actionbridge/staging/actionbridge-dental-staging/")
+                        self.assertNotIn("RoleName", props)
+                        self.assertEqual(props["AssumeRolePolicyDocument"], {
+                            "Version": "2012-10-17",
+                            "Statement": [{"Action": ["sts:AssumeRole"], "Effect": "Allow", "Principal": {"Service": ["lambda.amazonaws.com"]}}],
+                        })
+
+    def test_runtime_boundary_and_role_path_do_not_change_dev_or_demo(self):
+        for env in ("dev", "demo"):
+            for supplied_boundary in (False, True):
+                values = parameters(env)
+                if supplied_boundary:
+                    values["StagingRuntimePermissionsBoundaryArn"] = BOUNDARY
+                with self.subTest(environment=env, supplied_boundary=supplied_boundary):
+                    resources = translated(values).section("Resources")
+                    roles = [item["Properties"] for item in resources.values() if item["Type"] == "AWS::IAM::Role"]
+                    self.assertEqual(len(roles), 5)
+                    for role in roles:
+                        self.assertNotIn("PermissionsBoundary", role)
+                        self.assertEqual(role.get("Path", "/"), "/")
+                        self.assertNotIn("RoleName", role)
 
     def test_staging_origins_reject_wildcards_paths_and_insecure_remote_hosts(self):
         for origin in ("*", "https://*.vercel.app", "https://preview.example.test/path", "http://remote.example.test", "https://preview.example.test/"):
