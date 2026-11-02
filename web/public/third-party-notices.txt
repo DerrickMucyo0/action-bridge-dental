@@ -1,0 +1,19 @@
+ActionBridge Dental — dependency and font notices
+
+This distribution includes the packages listed below. Their unchanged copyright
+and permission notices are provided in the adjacent licenses/ directory.
+
+Geist 5.3.0 (@fontsource/geist): SIL Open Font License 1.1.
+Plus Jakarta Sans 5.3.0 (@fontsource/plus-jakarta-sans): SIL Open Font License 1.1.
+React and React DOM 19.2.3: MIT.
+React Router and React Router DOM 7.18.4: MIT.
+Lucide React 0.468.0: ISC (and included Lucide/Feather notices).
+Zod 4.6.6: MIT.
+Scheduler 0.27.0: MIT.
+Cookie 1.1.1: MIT.
+Set Cookie Parser 2.7.2: MIT.
+
+Original ActionBridge authors and contributors retain their existing attribution
+and Git history. This notice does not grant a project-wide license, establish
+ownership of the ActionBridge name or brand mark, or authorize republication of
+historical photographs/design archives. Public-release approval is separate.

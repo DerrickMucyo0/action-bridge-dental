@@ -1,7 +1,9 @@
 node_modules/
 dist/
+dist-core/
 test-results/
 playwright-report/
 .runtime/
 .env
 .env.local
+!.env.staging.example

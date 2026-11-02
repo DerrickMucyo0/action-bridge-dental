@@ -33,7 +33,32 @@ This root script builds the shared contracts and engine and starts Vite at **htt
 
 These are embedded in the built site. They are the same values as the mobile app's `EXPO_PUBLIC_*` settings. A missing or malformed value shows a configuration error on the sign-in page, never sample data.
 
-The API accepts browser calls only from configured origins in the stack's `WebOrigins` parameter (CORS), including the configured Vercel site, `http://localhost:5173` and `http://127.0.0.1:5173`. Origin changes require an infrastructure update.
+For the **core staging backend**, set `VITE_BACKGROUND_JOBS_ENABLED=false`
+before building. This disables assistant jobs, document/photo uploads, recording,
+transcription and speech before credential lookup or network requests. Home and
+deep links offer manual entry instead; case edits, estimates, comparisons and
+strategy saves remain available. The core backend also omits those routes and
+functions; the frontend flag is a usability gate, not an authorization boundary.
+The preview landing page explains these limits before sign-in and directs Get
+started to existing-account sign-in. This does not change Cognito registration
+settings or grant account access.
+Existing full backends keep their behavior when the flag is unset or `true`.
+Any other configured value is an error. Local mocked assistant flows stay enabled
+in the main browser-test configuration.
+
+The checked-in `.env.staging.example` contains the four reviewed public core-staging
+settings, including the required `false` flag. Review it before copying values to
+an existing local environment; do not overwrite that environment blindly. The
+configured API is currently kept inactive, and building with these values does
+not activate it or publish the site. Independent staging hosting is planned for
+AWS Amplify Hosting and requires separate publication approval.
+
+The isolated core staging API takes its CORS origins from `StagingWebOrigins`;
+the original full template uses `WebOrigins` for its other environments. Before
+publishing an Amplify branch, separately approve only its exact HTTPS origin in
+the staging parameter. Do not infer permission from an existing Vercel or local
+origin. CORS changes require an approved infrastructure update; they do not
+replace Cognito authentication or the disabled-endpoint guard.
 
 ## Account registration
 
@@ -45,6 +70,8 @@ Self-registration remains **disabled by default in the infrastructure template**
 
 Landing page at `/` for signed-out visitors → **Sign in** (`/sign-in`; returns you to the page you asked for) → Home → **composer** (speak, type, attach up to three pages or take a photo — all as a draft) → **Analyse** once → assistant: "Here's what I understood" (each item quotes the words or document it came from) and grouped questions with "I don't know" → facts review (every value labeled with its source) → options (server results) → details → review and save (one idempotency key per Save, safe to retry) → My plan and Activity (server ledger). "Try a sample case" and "Enter details step by step" are also available.
 
+- **Assistant recovery:** after a failed analysis, enter details manually in the same saved case without starting another analysis. Confirmed facts stay available, unknown values stay unknown, and a case changed elsewhere must be reloaded before saving. Retry is offered only while the server's attempt limit allows it.
+- **Stopping an analysis:** Stop waits for the server's response and shows its actual state, including completion that raced cancellation. Pending Stop requests cannot be duplicated. Failures leave the analysis visible for an explicit retry, and older polls or responses after navigation cannot overwrite the current page.
 - **Voice:** the browser records WebM/Ogg (Opus) or MP4, uploads it to a private, time-limited S3 slot, and Amazon Transcribe returns words you can edit. The microphone is on only while recording.
 - **Documents and photos:** PDF, JPEG or PNG, one page each, up to 5 MB. Files go straight to private storage and are deleted after the server reads them.
 - **Sessions:** the access token stays in memory. The refresh token and email are kept in `sessionStorage` (this tab only) so a reload doesn't sign you out. Nothing goes to `localStorage` except the IDs of cases you opened and a display-name preference.
@@ -105,6 +132,7 @@ npm run build
 npm --prefix web run typecheck
 npm --prefix web run build
 npm --prefix web test -- plan-comparison.spec.ts plan-comparison-api.spec.ts saved-plan-comparison.spec.ts plan-comparison-export.spec.ts live-app.spec.ts
+npm --prefix web test -- --config playwright.core.config.ts
 ```
 
 Use these package build steps to validate an existing checkout without reinstalling dependencies. The root `build:web` and web-local `build:web` convenience scripts invoke `npm ci`; they are unnecessary for this validation.

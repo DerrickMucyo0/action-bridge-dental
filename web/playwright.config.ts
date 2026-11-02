@@ -1,6 +1,10 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
+  testIgnore: [
+    '**/core-background-jobs.spec.ts',
+    '**/core-public-account-actions.spec.ts',
+  ],
   timeout: 90_000,
   expect: { timeout: 15_000 },
   fullyParallel: true,
@@ -25,6 +29,8 @@ export default defineConfig({
       VITE_API_BASE_URL: 'https://api.test.invalid/dev',
       VITE_COGNITO_CLIENT_ID: 'testclientid0123456789abcd',
       VITE_COGNITO_REGION: 'us-east-2',
+      VITE_BACKGROUND_JOBS_ENABLED: 'true',
+      VITE_PUBLIC_ACCOUNT_ACTIONS_ENABLED: 'true',
     },
   },
 });
