@@ -56,7 +56,7 @@ export async function runJob(deps: JobRunnerDeps, message: { ownerId: string; jo
     updatedAt: deps.now().toISOString(),
   };
   const ttl = () => expiresAtFrom(deps.now(), deps.retentionDays);
-  const claimed = await deps.jobs.put(job, { status: [stored.status], ...(stored.leaseToken ? { leaseToken: stored.leaseToken } : {}) }, ttl());
+  const claimed = await deps.jobs.put(job, { status: [stored.status], attempt: stored.attempt, ...(stored.leaseToken ? { leaseToken: stored.leaseToken } : {}) }, ttl());
   if (!claimed) return 'skipped';
 
   const save = async (next: JobRecord): Promise<boolean> => {
@@ -218,7 +218,7 @@ export async function runJob(deps: JobRunnerDeps, message: { ownerId: string; jo
     if (!upload) return null;
     let lines: string[];
     try {
-      lines = await reader.readLines(deps.uploads.bucket, upload.key);
+      lines = await reader.readLines(deps.uploads.bucket, upload.key, { jobId: job.jobId, documentId });
     } catch (error) {
       await deps.uploads.remove(upload.key).catch(() => undefined);
       if (error instanceof Error && UNREADABLE_DOCUMENT_ERRORS.has(error.name)) {
@@ -317,7 +317,7 @@ export async function runJob(deps: JobRunnerDeps, message: { ownerId: string; jo
     blocks.push(
       notice(
         'info',
-        explanation ? 'What this means (AI explanation of the calculator’s results)' : 'Estimate ready',
+        explanation ? 'Calculator explanation' : 'Estimate ready',
         explanation ?? 'These amounts come from the calculator using the details you confirmed. They are estimates, not a guarantee of payment.',
       ),
     );

@@ -152,8 +152,11 @@ export class JobService {
       revision = (await this.deps.cases.patch(ownerId, job.caseId, patch)).caseRevision;
     }
 
-    // Close this step; a concurrent duplicate submit already lost the revision check above.
-    await this.deps.jobs.put({ ...job, status: 'completed', updatedAt: recordedAt }, { status: ['needs_information'] }, this.ttl());
+    // Declining a proposal or choosing "unknown" can leave the case revision unchanged.
+    // The conditional close, rather than the revision check alone, selects the one submit
+    // allowed to enqueue follow-up work (and also respects a concurrent cancellation).
+    const closed = await this.deps.jobs.put({ ...job, status: 'completed', updatedAt: recordedAt }, { status: ['needs_information'] }, this.ttl());
+    if (!closed) throw new HttpError('REVISION_CONFLICT', 'This analysis changed. Reload to see the latest step.');
     return this.start(ownerId, job.caseId, revision, null, { skippedFieldPaths: [...skipped], expandedGroups: [...expanded] });
   }
 
@@ -167,9 +170,20 @@ export class JobService {
       await this.deps.cases.get(ownerId, job.caseId);
       await this.deps.staging.consume(ownerId, 'jobs');
     }
-    const ok = await this.deps.jobs.put({ ...job, status: 'queued', error: null, updatedAt: this.deps.now().toISOString() }, { status: ['failed'] }, this.ttl());
+    const ok = await this.deps.jobs.put({ ...job, status: 'queued', error: null, updatedAt: this.deps.now().toISOString() }, { status: ['failed'], attempt: job.attempt }, this.ttl());
     if (!ok) throw new HttpError('REVISION_CONFLICT', 'This analysis changed. Reload and try again.');
-    await this.deps.queue.enqueue({ ownerId, jobId });
+    try {
+      await this.deps.queue.enqueue({ ownerId, jobId });
+    } catch {
+      // A lost acknowledgement can follow delivery. Only close the still-queued state:
+      // never overwrite a worker's claim/result, cancellation or a later retry, or resend.
+      await this.deps.jobs.put(
+        { ...job, status: 'failed', updatedAt: this.deps.now().toISOString(), error: { code: 'UPSTREAM_UNAVAILABLE', message: 'The assistant is busy. Check this analysis before trying again.', retryable: true, requestId: job.jobId } },
+        { status: ['queued'], attempt: job.attempt },
+        this.ttl(),
+      );
+      throw new HttpError('UPSTREAM_UNAVAILABLE', 'The assistant could not confirm the retry. Check this analysis before trying again.');
+    }
     return { jobId };
   }
 

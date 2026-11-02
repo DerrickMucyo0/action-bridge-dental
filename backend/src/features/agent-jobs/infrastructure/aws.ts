@@ -49,6 +49,12 @@ export class DynamoJobRepository implements JobRepository {
       values[':lease'] = condition.leaseToken;
       clauses.push('leaseToken = :lease');
     }
+    if (condition.attempt !== undefined) {
+      names['#job'] = 'job';
+      names['#attempt'] = 'attempt';
+      values[':attempt'] = condition.attempt;
+      clauses.push('#job.#attempt = :attempt');
+    }
     try {
       await this.client.send(
         new PutCommand({

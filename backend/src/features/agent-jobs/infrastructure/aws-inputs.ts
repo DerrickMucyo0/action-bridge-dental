@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import {
@@ -13,7 +14,7 @@ import {
   StartTranscriptionJobCommand,
   type TranscribeClient,
 } from '@aws-sdk/client-transcribe';
-import type { AudioFormat, DocumentReader, Transcriber, UploadStore } from '../ports.js';
+import type { AudioFormat, DocumentReader, DocumentReadIdentity, Transcriber, UploadStore } from '../ports.js';
 
 export class S3UploadStore implements UploadStore {
   constructor(
@@ -97,8 +98,8 @@ export const MAX_PDF_PAGES = 5;
 
 /**
  * Text lines of an image or PDF. Images and single-page PDFs use the instant API; a multi-page PDF
- * (which that API rejects) falls back to the asynchronous API, reading the first pages within a
- * time budget so the worker always finishes.
+ * (which that API rejects) falls back to the asynchronous API. An elapsed time budget stops
+ * further result requests; it cannot cancel an SDK request already in flight.
  */
 export class TextractReader implements DocumentReader {
   constructor(
@@ -106,7 +107,16 @@ export class TextractReader implements DocumentReader {
     private readonly options: { sleep?: (ms: number) => Promise<void>; now?: () => number; maxWaitMs?: number } = {},
   ) {}
 
-  async readLines(bucket: string, key: string) {
+  async readLines(bucket: string, key: string, identity: DocumentReadIdentity) {
+    if (!identity || typeof identity.jobId !== 'string' || !identity.jobId.trim() || identity.jobId.length > 64
+      || typeof identity.documentId !== 'string' || !identity.documentId.trim() || identity.documentId.length > 64) {
+      throw named('DocumentReadIdentityError', 'A stable document job identity is required');
+    }
+    // Stable across process restarts/redelivery; never include the attempt, clock or randomness.
+    // Hash only identifies this logical request, not an immutable version of a mutable S3 object.
+    const ClientRequestToken = createHash('sha256')
+      .update(JSON.stringify(['actionbridge-textract-text-v1', identity.jobId, identity.documentId, bucket, key]))
+      .digest('hex');
     const S3Object = { Bucket: bucket, Name: key };
     try {
       const output = await this.client.send(new DetectDocumentTextCommand({ Document: { S3Object } }));
@@ -117,24 +127,40 @@ export class TextractReader implements DocumentReader {
     const sleep = this.options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
     const now = this.options.now ?? Date.now;
     const deadline = now() + (this.options.maxWaitMs ?? 60_000);
-    const { JobId } = await this.client.send(new StartDocumentTextDetectionCommand({ DocumentLocation: { S3Object } }));
+    const { JobId } = await this.client.send(new StartDocumentTextDetectionCommand({ DocumentLocation: { S3Object }, ClientRequestToken }));
+    if (!JobId) throw named('TextractResponseError', 'Document processing returned no job identifier');
     for (;;) {
+      requireTimeRemaining();
       await sleep(1500);
+      requireTimeRemaining();
       const first = await this.client.send(new GetDocumentTextDetectionCommand({ JobId, MaxResults: 1000 }));
+      requireTimeRemaining();
       if (first.JobStatus === 'FAILED') throw named('UnsupportedDocumentException', first.StatusMessage ?? 'Textract could not read the document');
       if (first.JobStatus === 'SUCCEEDED' || first.JobStatus === 'PARTIAL_SUCCESS') {
         const found = lines(first.Blocks);
         let token = first.NextToken;
         let lastPage = Math.max(0, ...(first.Blocks ?? []).map((b) => b.Page ?? 0));
-        while (token && lastPage < MAX_PDF_PAGES) {
+        const seenTokens = new Set<string>();
+        // A result batch can end partway through page five. Continue until the next
+        // page is observed; line filtering still excludes every page beyond the cap.
+        while (token && lastPage <= MAX_PDF_PAGES) {
+          if (seenTokens.has(token)) throw named('TextractResponseError', 'Document processing repeated a result cursor');
+          seenTokens.add(token);
+          requireTimeRemaining();
           const next = await this.client.send(new GetDocumentTextDetectionCommand({ JobId, MaxResults: 1000, NextToken: token }));
+          requireTimeRemaining();
+          if (next.JobStatus !== 'SUCCEEDED' && next.JobStatus !== 'PARTIAL_SUCCESS')
+            throw named('TextractResponseError', 'Document processing returned incomplete paginated results');
           found.push(...lines(next.Blocks));
           lastPage = Math.max(lastPage, ...(next.Blocks ?? []).map((b) => b.Page ?? 0));
           token = next.NextToken;
         }
         return found;
       }
-      if (now() > deadline) throw named('TextractTimeout', 'Reading the document took too long');
+    }
+
+    function requireTimeRemaining() {
+      if (now() >= deadline) throw named('TextractTimeout', 'Reading the document took too long');
     }
 
     function lines(blocks: Block[] | undefined): string[] {

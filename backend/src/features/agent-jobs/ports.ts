@@ -40,6 +40,8 @@ export interface JobWriteCondition {
   status?: JobStatus[];
   /** The stored lease token must equal this value (the worker that claimed the job). */
   leaseToken?: string;
+  /** The stored attempt must match; status alone may recur after a later worker claim. */
+  attempt?: number;
 }
 
 export interface JobRepository {
@@ -68,9 +70,15 @@ export interface Transcriber {
   remove(name: string): Promise<void>;
 }
 
+/** Existing application identifiers, stable across delivery/attempts of one document job. */
+export interface DocumentReadIdentity {
+  jobId: string;
+  documentId: string;
+}
+
 export interface DocumentReader {
   /** Text lines of an image or PDF (the first pages of a multi-page PDF). */
-  readLines(bucket: string, key: string): Promise<string[]>;
+  readLines(bucket: string, key: string, identity: DocumentReadIdentity): Promise<string[]>;
 }
 
 /** `uploads/<owner as base64url>/<caseId>/<uploadId>`: only the owner's own requests can name it. */

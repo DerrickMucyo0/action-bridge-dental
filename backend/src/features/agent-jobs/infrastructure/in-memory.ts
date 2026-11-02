@@ -21,6 +21,7 @@ export class InMemoryJobRepository implements JobRepository {
     if (!current) return false;
     if (condition.status && !condition.status.includes(current.status)) return false;
     if (condition.leaseToken !== undefined && current.leaseToken !== condition.leaseToken) return false;
+    if (condition.attempt !== undefined && current.attempt !== condition.attempt) return false;
     this.jobs.set(key, structuredClone(job));
     return true;
   }

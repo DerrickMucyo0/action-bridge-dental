@@ -41,7 +41,7 @@ export interface InterpretResult {
   /** Missing facts the engine reports for the case with all proposals confirmed. */
   missingAfter: MissingFact[];
   toolCalls: number;
-  /** The model's closing sentences, or null if absent or rejected (it contained amounts). */
+  /** Reserved for an application-rendered summary; raw model closing prose is never displayed. */
   summary: string | null;
 }
 
@@ -79,7 +79,6 @@ export async function runInterpretAgent(args: {
   // Facts from every record_case_facts call so far: a follow-up call adds to them, never erases them.
   let recorded: Extraction | null = null;
   let toolCalls = 0;
-  let summary: string | null = null;
 
   const draft = () => applyGroups(input, groups, placeholderFact).input;
 
@@ -102,8 +101,8 @@ export async function runInterpretAgent(args: {
 
     const uses = reply.content.flatMap((block) => ('toolUse' in block ? [block.toolUse] : []));
     if (uses.length === 0 || reply.stopReason !== 'tool_use') {
-      const closing = reply.content.flatMap((block) => ('text' in block ? [block.text] : [])).join(' ').trim();
-      summary = closing && !/\$\s?\d|\d+\.\d{2}\b/.test(closing) ? closing.slice(0, 400) : null;
+      // Tool proposals are validated below and confirmed by the user. Free-form closing text
+      // cannot be verified for financial or clinical meaning, so use foundNotice's count summary.
       break;
     }
 
@@ -165,7 +164,7 @@ export async function runInterpretAgent(args: {
   }
 
   const final = estimateCase(draft());
-  return { groups, dropped, missingAfter: final.status === 'needs_information' ? final.missing : [], toolCalls, summary };
+  return { groups, dropped, missingAfter: final.status === 'needs_information' ? final.missing : [], toolCalls, summary: null };
 }
 
 function toolOk(toolUseId: string, json: unknown): ContentBlock {
