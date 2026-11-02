@@ -1,0 +1,51 @@
+{
+  "account": "631367363628",
+  "region": "us-east-2",
+  "stack_name": "actionbridge-dental-staging",
+  "api": {
+    "name": "actionbridge-dental-staging",
+    "stage": "staging"
+  },
+  "functions": {
+    "HealthFunction": {
+      "name": "actionbridge-dental-staging-health",
+      "role_name": "actionbridge-dental-staging-health-role",
+      "boundary_policy_name": "actionbridge-dental-staging-health-boundary"
+    },
+    "CasesFunction": {
+      "name": "actionbridge-dental-staging-cases",
+      "role_name": "actionbridge-dental-staging-cases-role",
+      "boundary_policy_name": "actionbridge-dental-staging-cases-boundary"
+    },
+    "CalculationsFunction": {
+      "name": "actionbridge-dental-staging-calculations",
+      "role_name": "actionbridge-dental-staging-calculations-role",
+      "boundary_policy_name": "actionbridge-dental-staging-calculations-boundary"
+    },
+    "JobsFunction": {
+      "name": "actionbridge-dental-staging-jobs",
+      "role_name": "actionbridge-dental-staging-jobs-role",
+      "boundary_policy_name": "actionbridge-dental-staging-jobs-boundary"
+    },
+    "JobWorkerFunction": {
+      "name": "actionbridge-dental-staging-job-worker",
+      "role_name": "actionbridge-dental-staging-job-worker-role",
+      "boundary_policy_name": "actionbridge-dental-staging-job-worker-boundary"
+    }
+  },
+  "table": {
+    "logical_id": "CasesTable",
+    "name": "actionbridge-dental-staging-cases"
+  },
+  "buckets": {
+    "uploads": "ab-dental-staging-uploads-631367363628-us-east-2",
+    "artifacts": "ab-dental-staging-artifacts-631367363628-us-east-2"
+  },
+  "queues": {
+    "work": "actionbridge-dental-staging-jobs",
+    "dead_letter": "actionbridge-dental-staging-dlq"
+  },
+  "role_path": "/actionbridge/staging/actionbridge-dental-staging/",
+  "execution_role_name": "actionbridge-dental-staging-cfn",
+  "artifact_prefix": "actionbridge-dental-staging/"
+}

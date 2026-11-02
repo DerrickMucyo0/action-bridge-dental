@@ -1,0 +1,68 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectOnlyExistingStagingPool",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:DescribeUserPool",
+        "cognito-idp:DescribeUserPoolClient",
+        "cognito-idp:ListUsers"
+      ],
+      "Resource": "arn:aws:cognito-idp:us-east-2:631367363628:userpool/us-east-2_GErUtH894"
+    },
+    {
+      "Sid": "InspectOnlyProposedNewStack",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:ListStackResources",
+        "cloudformation:GetTemplate"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-2:631367363628:stack/actionbridge-dental-staging/*"
+    },
+    {
+      "Sid": "InspectOnlyChosenInferenceProfile",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:GetInferenceProfile"
+      ],
+      "Resource": "arn:aws:bedrock:us-east-2:631367363628:inference-profile/us.amazon.nova-2-lite-v1:0"
+    },
+    {
+      "Sid": "InspectOnlyChosenModelAvailability",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:GetFoundationModelAvailability"
+      ],
+      "Resource": "arn:aws:bedrock:us-east-2::foundation-model/amazon.nova-2-lite-v1:0"
+    },
+    {
+      "Sid": "InspectOnlyProposedDeploymentRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies"
+      ],
+      "Resource": "arn:aws:iam::631367363628:role/actionbridge-dental-staging-cfn"
+    },
+    {
+      "Sid": "InspectOnlyFiveRuntimeBoundaries",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion"
+      ],
+      "Resource": [
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-health-boundary",
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-cases-boundary",
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-calculations-boundary",
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-jobs-boundary",
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-job-worker-boundary"
+      ]
+    }
+  ]
+}

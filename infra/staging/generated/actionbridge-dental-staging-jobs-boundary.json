@@ -1,0 +1,183 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OwnLogStreams",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-2:631367363628:log-group:/aws/lambda/actionbridge-dental-staging-jobs:log-stream:*"
+    },
+    {
+      "Sid": "StagingJobs",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-2:631367363628:table/actionbridge-dental-staging-cases"
+    },
+    {
+      "Sid": "QuotaKeysOnly",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:UpdateItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-2:631367363628:table/actionbridge-dental-staging-cases",
+      "Condition": {
+        "ForAllValues:StringLike": {
+          "dynamodb:LeadingKeys": [
+            "STAGING_QUOTA#*"
+          ]
+        },
+        "Null": {
+          "dynamodb:LeadingKeys": "false"
+        }
+      }
+    },
+    {
+      "Sid": "EnqueueStagingWork",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:SendMessage"
+      ],
+      "Resource": "arn:aws:sqs:us-east-2:631367363628:actionbridge-dental-staging-jobs"
+    },
+    {
+      "Sid": "PresignStagingUploads",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::ab-dental-staging-uploads-631367363628-us-east-2/uploads/*",
+      "Condition": {
+        "StringEquals": {
+          "s3:ResourceAccount": "631367363628"
+        }
+      }
+    },
+    {
+      "Sid": "SpeechInConfiguredRegion",
+      "Effect": "Allow",
+      "Action": [
+        "polly:SynthesizeSpeech"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "NoOtherActions",
+      "Effect": "Deny",
+      "NotAction": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "polly:SynthesizeSpeech",
+        "s3:PutObject",
+        "sqs:SendMessage"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "NoOtherResources0",
+      "Effect": "Deny",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem"
+      ],
+      "NotResource": [
+        "arn:aws:dynamodb:us-east-2:631367363628:table/actionbridge-dental-staging-cases"
+      ]
+    },
+    {
+      "Sid": "NoOtherResources1",
+      "Effect": "Deny",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "NotResource": [
+        "arn:aws:logs:us-east-2:631367363628:log-group:/aws/lambda/actionbridge-dental-staging-jobs:log-stream:*"
+      ]
+    },
+    {
+      "Sid": "NoOtherResources2",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutObject"
+      ],
+      "NotResource": [
+        "arn:aws:s3:::ab-dental-staging-uploads-631367363628-us-east-2/uploads/*"
+      ]
+    },
+    {
+      "Sid": "NoOtherResources3",
+      "Effect": "Deny",
+      "Action": [
+        "sqs:SendMessage"
+      ],
+      "NotResource": [
+        "arn:aws:sqs:us-east-2:631367363628:actionbridge-dental-staging-jobs"
+      ]
+    },
+    {
+      "Sid": "RequireContext45",
+      "Effect": "Deny",
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::ab-dental-staging-uploads-631367363628-us-east-2/uploads/*",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:ResourceAccount": "631367363628"
+        }
+      }
+    },
+    {
+      "Sid": "RequireContext56",
+      "Effect": "Deny",
+      "Action": [
+        "polly:SynthesizeSpeech"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    },
+    {
+      "Sid": "NoOtherQuotaKeys",
+      "Effect": "Deny",
+      "Action": "dynamodb:UpdateItem",
+      "Resource": "arn:aws:dynamodb:us-east-2:631367363628:table/actionbridge-dental-staging-cases",
+      "Condition": {
+        "ForAnyValue:StringNotLike": {
+          "dynamodb:LeadingKeys": [
+            "STAGING_QUOTA#*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "QuotaKeysMustBePresent",
+      "Effect": "Deny",
+      "Action": "dynamodb:UpdateItem",
+      "Resource": "arn:aws:dynamodb:us-east-2:631367363628:table/actionbridge-dental-staging-cases",
+      "Condition": {
+        "Null": {
+          "dynamodb:LeadingKeys": "true"
+        }
+      }
+    }
+  ]
+}

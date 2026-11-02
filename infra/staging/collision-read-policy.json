@@ -1,0 +1,203 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadRegionCoverageMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeRegions"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "InspectOnlyNamedStack",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-2:631367363628:stack/actionbridge-dental-staging/*",
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "InspectOnlyFiveFunctionConfigurations",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunctionConfiguration"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-2:631367363628:function:actionbridge-dental-staging-health",
+        "arn:aws:lambda:us-east-2:631367363628:function:actionbridge-dental-staging-cases",
+        "arn:aws:lambda:us-east-2:631367363628:function:actionbridge-dental-staging-calculations",
+        "arn:aws:lambda:us-east-2:631367363628:function:actionbridge-dental-staging-jobs",
+        "arn:aws:lambda:us-east-2:631367363628:function:actionbridge-dental-staging-job-worker"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "ListOhioLogGroupMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogGroups"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "InspectOnlyNamedTable",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:DescribeTable"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-2:631367363628:table/actionbridge-dental-staging-cases",
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "FindOnlyTwoQueueUrls",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:GetQueueUrl"
+      ],
+      "Resource": [
+        "arn:aws:sqs:us-east-2:631367363628:actionbridge-dental-staging-jobs",
+        "arn:aws:sqs:us-east-2:631367363628:actionbridge-dental-staging-dlq"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "BucketChecksRequireListBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ab-dental-staging-uploads-631367363628-us-east-2",
+        "arn:aws:s3:::ab-dental-staging-artifacts-631367363628-us-east-2"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        }
+      }
+    },
+    {
+      "Sid": "ListRoleMetadataForPathCollisionReview",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListRoles"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        }
+      }
+    },
+    {
+      "Sid": "InspectOnlySixRoleNamesAcrossAllPaths",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::631367363628:role/actionbridge-dental-staging-health-role",
+        "arn:aws:iam::631367363628:role/*/actionbridge-dental-staging-health-role",
+        "arn:aws:iam::631367363628:role/actionbridge-dental-staging-cases-role",
+        "arn:aws:iam::631367363628:role/*/actionbridge-dental-staging-cases-role",
+        "arn:aws:iam::631367363628:role/actionbridge-dental-staging-calculations-role",
+        "arn:aws:iam::631367363628:role/*/actionbridge-dental-staging-calculations-role",
+        "arn:aws:iam::631367363628:role/actionbridge-dental-staging-jobs-role",
+        "arn:aws:iam::631367363628:role/*/actionbridge-dental-staging-jobs-role",
+        "arn:aws:iam::631367363628:role/actionbridge-dental-staging-job-worker-role",
+        "arn:aws:iam::631367363628:role/*/actionbridge-dental-staging-job-worker-role",
+        "arn:aws:iam::631367363628:role/actionbridge-dental-staging-cfn",
+        "arn:aws:iam::631367363628:role/*/actionbridge-dental-staging-cfn"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        }
+      }
+    },
+    {
+      "Sid": "InspectOnlyFiveBoundaryPolicyMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetPolicy"
+      ],
+      "Resource": [
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-health-boundary",
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-cases-boundary",
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-calculations-boundary",
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-jobs-boundary",
+        "arn:aws:iam::631367363628:policy/actionbridge-dental-staging-job-worker-boundary"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        }
+      }
+    },
+    {
+      "Sid": "ListOhioHttpWebsocketAndRestApiMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET"
+      ],
+      "Resource": [
+        "arn:aws:apigateway:us-east-2::/apis",
+        "arn:aws:apigateway:us-east-2::/restapis"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::631367363628:user/actionbridge-developer"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    }
+  ]
+}

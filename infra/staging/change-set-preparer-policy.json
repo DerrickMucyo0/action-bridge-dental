@@ -1,0 +1,119 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PrepareOnlyNamedStackWithNamedRole",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateChangeSet"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-2:631367363628:stack/actionbridge-dental-staging/*",
+      "Condition": {
+        "StringEquals": {
+          "cloudformation:RoleArn": "arn:aws:iam::631367363628:role/actionbridge-dental-staging-cfn",
+          "cloudformation:ChangeSetName": [
+            "actionbridge-staging-initial-review",
+            "actionbridge-staging-backend-review"
+          ],
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "ReadNamedStackAndReviewChangeSets",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:ListStackResources",
+        "cloudformation:GetTemplate",
+        "cloudformation:ListChangeSets"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-2:631367363628:stack/actionbridge-dental-staging/*"
+    },
+    {
+      "Sid": "ReviewOnlyNamedStagingChangeSets",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeChangeSet"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-2:631367363628:stack/actionbridge-dental-staging/*",
+      "Condition": {
+        "StringEquals": {
+          "cloudformation:ChangeSetName": [
+            "actionbridge-staging-initial-review",
+            "actionbridge-staging-backend-review"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "PassOnlyReviewedCloudFormationRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::631367363628:role/actionbridge-dental-staging-cfn",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "cloudformation.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "InspectApprovedArtifactBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation"
+      ],
+      "Resource": "arn:aws:s3:::ab-dental-staging-artifacts-631367363628-us-east-2",
+      "Condition": {
+        "StringEquals": {
+          "s3:ResourceAccount": "631367363628"
+        }
+      }
+    },
+    {
+      "Sid": "UploadOnlyStagingArtifacts",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::ab-dental-staging-artifacts-631367363628-us-east-2/actionbridge-dental-staging/*",
+      "Condition": {
+        "StringEquals": {
+          "s3:ResourceAccount": "631367363628"
+        }
+      }
+    },
+    {
+      "Sid": "NoExecutionDeletionOrDirectStackChanges",
+      "Effect": "Deny",
+      "Action": [
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DeleteStack",
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:ContinueUpdateRollback",
+        "cloudformation:RollbackStack",
+        "cloudformation:SetStackPolicy",
+        "cloudformation:UpdateTerminationProtection"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "NoResourceImports",
+      "Effect": "Deny",
+      "Action": [
+        "cloudformation:CreateChangeSet"
+      ],
+      "Resource": "arn:aws:cloudformation:us-east-2:631367363628:stack/actionbridge-dental-staging/*",
+      "Condition": {
+        "Null": {
+          "cloudformation:ImportResourceTypes": "false"
+        }
+      }
+    }
+  ]
+}

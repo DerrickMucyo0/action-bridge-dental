@@ -1,0 +1,1478 @@
+# Generated offline by infra/staging/build-templates.py; review before any cloud write.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ActionBridge Dental staging backend UPDATE after the reviewed empty-API bootstrap. Public generated
+  template; requires CAPABILITY_NAMED_IAM. Synthetic data only.
+Metadata:
+  DeploymentPhase: backend-update-after-bootstrap
+  LegacyParametersIgnored:
+    AuthCallbackUrls:
+      Ref: AuthCallbackUrls
+    EnableSelfRegistration:
+      Ref: EnableSelfRegistration
+    Explanation: Accepted for compatibility only; identity is external and each role uses its fixed administrator-owned
+      boundary.
+    StagingRuntimePermissionsBoundaryArn:
+      Ref: StagingRuntimePermissionsBoundaryArn
+    WebOrigins:
+      Ref: WebOrigins
+  StagingTarget:
+    Account: '631367363628'
+    Region: us-east-2
+    StackName: actionbridge-dental-staging
+  TargetCheck: The owner must verify caller account, Region, stack and bootstrap API ID before cloud operations;
+    metadata is not an IAM restriction.
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL including the stage. Set as EXPO_PUBLIC_API_BASE_URL and API_BASE_URL for the smoke test.
+    Value:
+      Fn::Sub: https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${AppEnv}
+  CasesTableName:
+    Description: DynamoDB table holding owner-scoped cases
+    Value:
+      Ref: CasesTable
+  CognitoIssuer:
+    Description: Token issuer checked by the API authorizer
+    Value:
+      Fn::Sub: https://cognito-idp.${AWS::Region}.amazonaws.com/${ExistingUserPoolId}
+  HttpApiId:
+    Description: Must match the reviewed bootstrap API ID.
+    Value:
+      Ref: HttpApi
+  JobDeadLetterQueueUrl:
+    Description: Agent jobs that failed twice in the worker land here for inspection
+    Value:
+      Ref: JobDeadLetterQueue
+  UserPoolClientId:
+    Description: Public mobile client ID (not a secret). Set as EXPO_PUBLIC_COGNITO_CLIENT_ID.
+    Value:
+      Ref: ExistingUserPoolClientId
+  UserPoolId:
+    Description: Existing Cognito pool outside this stack's lifecycle.
+    Value:
+      Ref: ExistingUserPoolId
+Parameters:
+  AppEnv:
+    AllowedValues:
+    - staging
+    Default: staging
+    Description: Fixed staging environment in this generated template.
+    Type: String
+  AuthCallbackUrls:
+    Default: actionbridgedental://auth/callback
+    Description: Legacy compatibility parameter, ignored by this generated staging template. External identity and
+      StagingWebOrigins are authoritative.
+    Type: CommaDelimitedList
+  BedrockFoundationModel:
+    AllowedValues:
+    - amazon.nova-2-lite-v1:0
+    Default: amazon.nova-2-lite-v1:0
+    Description: Foundation model behind the inference profile (IAM scope).
+    Type: String
+  BedrockModelId:
+    AllowedValues:
+    - us.amazon.nova-2-lite-v1:0
+    Default: us.amazon.nova-2-lite-v1:0
+    Description: Bedrock inference profile the agent worker calls.
+    Type: String
+  CalculationsArtifactKey:
+    AllowedPattern: ^actionbridge-dental-staging/calculations/[a-f0-9]{64}[.]zip$
+    Description: Required immutable packaged artifact key for CalculationsFunction; generated locally from the ZIP
+      SHA-256. No default artifact exists.
+    Type: String
+  CasesArtifactKey:
+    AllowedPattern: ^actionbridge-dental-staging/cases/[a-f0-9]{64}[.]zip$
+    Description: Required immutable packaged artifact key for CasesFunction; generated locally from the ZIP SHA-256.
+      No default artifact exists.
+    Type: String
+  EnableSelfRegistration:
+    AllowedValues:
+    - 'false'
+    - 'true'
+    Default: 'false'
+    Description: Legacy compatibility parameter, ignored by this generated staging template. External identity and
+      StagingWebOrigins are authoritative.
+    Type: String
+  ExistingUserPoolClientId:
+    AllowedPattern: ^$|^[A-Za-z0-9]{20,40}$
+    Default: ''
+    Description: Required existing public client belonging to ExistingUserPoolId; verify account ownership, no secret
+      and required authentication flows separately.
+    Type: String
+  ExistingUserPoolId:
+    AllowedPattern: ^$|^[a-z]{2}(-[a-z0-9]+)+-[0-9]_[A-Za-z0-9]+$
+    Default: ''
+    Description: Required approved existing Cognito pool; no identity resources are created, changed or deleted
+      by this stack.
+    Type: String
+  HealthArtifactKey:
+    AllowedPattern: ^actionbridge-dental-staging/health/[a-f0-9]{64}[.]zip$
+    Description: Required immutable packaged artifact key for HealthFunction; generated locally from the ZIP SHA-256.
+      No default artifact exists.
+    Type: String
+  JobWorkerArtifactKey:
+    AllowedPattern: ^actionbridge-dental-staging/job-worker/[a-f0-9]{64}[.]zip$
+    Description: Required immutable packaged artifact key for JobWorkerFunction; generated locally from the ZIP
+      SHA-256. No default artifact exists.
+    Type: String
+  JobsArtifactKey:
+    AllowedPattern: ^actionbridge-dental-staging/jobs/[a-f0-9]{64}[.]zip$
+    Description: Required immutable packaged artifact key for JobsFunction; generated locally from the ZIP SHA-256.
+      No default artifact exists.
+    Type: String
+  RetentionDays:
+    Default: 7
+    Description: Demo case records expire via DynamoDB TTL (eventual deletion, not immediate).
+    MaxValue: 90
+    MinValue: 1
+    Type: Number
+  StagingAllowedUserSubs:
+    AllowedPattern: ^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}){0,9}$
+    Default: ''
+    Description: Required for staging; 1-10 approved Cognito sub UUIDs, comma-separated without spaces. Never email
+      addresses or tokens.
+    MaxLength: 369
+    NoEcho: true
+    Type: String
+  StagingGlobalJobDailyLimit:
+    Default: 20
+    Description: Staging-only global UTC-day admission limit; attempted work consumes quota even if processing fails.
+    MaxValue: 1000
+    MinValue: 1
+    Type: Number
+  StagingGlobalSpeechDailyLimit:
+    Default: 60
+    Description: Staging-only global UTC-day admission limit; attempted work consumes quota even if processing fails.
+    MaxValue: 1000
+    MinValue: 1
+    Type: Number
+  StagingGlobalUploadDailyLimit:
+    Default: 20
+    Description: Staging-only global UTC-day admission limit; attempted work consumes quota even if processing fails.
+    MaxValue: 1000
+    MinValue: 1
+    Type: Number
+  StagingJobDailyLimit:
+    Default: 10
+    Description: Staging-only per-user UTC-day admission limit; attempted work consumes quota even if processing
+      fails.
+    MaxValue: 100
+    MinValue: 1
+    Type: Number
+  StagingRuntimePermissionsBoundaryArn:
+    AllowedPattern: ^$|^arn:[a-z0-9-]+:iam::[0-9]{12}:policy/([A-Za-z0-9+=,.@_-]+/)*[A-Za-z0-9+=,.@_-]{1,128}$
+    Default: ''
+    Description: Legacy compatibility parameter, ignored by this generated staging template. Each role uses its
+      own fixed administrator-owned boundary ARN.
+    Type: String
+  StagingSpeechDailyLimit:
+    Default: 30
+    Description: Staging-only per-user UTC-day admission limit; attempted work consumes quota even if processing
+      fails.
+    MaxValue: 100
+    MinValue: 1
+    Type: Number
+  StagingUploadDailyLimit:
+    Default: 10
+    Description: Staging-only per-user UTC-day admission limit; attempted work consumes quota even if processing
+      fails.
+    MaxValue: 100
+    MinValue: 1
+    Type: Number
+  StagingWebOrigins:
+    AllowedPattern: ^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?$|^http://(localhost|127[.]0[.]0[.]1):5173$
+    ConstraintDescription: Staging origins must be exact HTTPS origins or localhost/127.0.0.1 HTTP origins on port
+      5173, without paths or wildcards.
+    Default: http://localhost:5173,http://127.0.0.1:5173
+    Description: Staging-only browser origins; local development by default. Add only explicitly approved HTTPS
+      Vercel Preview origins.
+    Type: CommaDelimitedList
+  WebOrigins:
+    Default: https://action-bridge-dental-web.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+    Description: Legacy compatibility parameter, ignored by this generated staging template. External identity and
+      StagingWebOrigins are authoritative.
+    Type: CommaDelimitedList
+Resources:
+  CalculationsFunction:
+    Properties:
+      Architectures:
+      - arm64
+      Code:
+        S3Bucket: ab-dental-staging-artifacts-631367363628-us-east-2
+        S3Key:
+          Ref: CalculationsArtifactKey
+      Description: Estimates and schedule comparison from the pure benefits engine (read-only)
+      Environment:
+        Variables:
+          APP_ENV:
+            Ref: AppEnv
+          AUTH_MODE: jwt
+          NODE_OPTIONS: --enable-source-maps
+          STAGING_ALLOWED_USER_SUBS:
+            Ref: StagingAllowedUserSubs
+          STAGING_GLOBAL_JOB_DAILY_LIMIT:
+            Ref: StagingGlobalJobDailyLimit
+          STAGING_GLOBAL_SPEECH_DAILY_LIMIT:
+            Ref: StagingGlobalSpeechDailyLimit
+          STAGING_GLOBAL_UPLOAD_DAILY_LIMIT:
+            Ref: StagingGlobalUploadDailyLimit
+          STAGING_JOB_DAILY_LIMIT:
+            Ref: StagingJobDailyLimit
+          STAGING_SPEECH_DAILY_LIMIT:
+            Ref: StagingSpeechDailyLimit
+          STAGING_UPLOAD_DAILY_LIMIT:
+            Ref: StagingUploadDailyLimit
+          TABLE_NAME:
+            Ref: CasesTable
+      FunctionName: actionbridge-dental-staging-calculations
+      Handler: index.handler
+      MemorySize: 512
+      Role:
+        Fn::GetAtt:
+        - CalculationsFunctionRole
+        - Arn
+      Runtime: nodejs22.x
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+      Timeout: 10
+    Type: AWS::Lambda::Function
+  CalculationsFunctionCoverageComparisonPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CalculationsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases/*/coverage-comparison
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CalculationsFunctionEstimatePermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CalculationsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases/*/estimates
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CalculationsFunctionPlanComparisonPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CalculationsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases/*/plan-comparison
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CalculationsFunctionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /actionbridge/staging/actionbridge-dental-staging/
+      PermissionsBoundary: arn:aws:iam::631367363628:policy/actionbridge-dental-staging-calculations-boundary
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - dynamodb:GetItem
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+              - CasesTable
+              - Arn
+        PolicyName: CalculationsFunctionRolePolicy0
+      RoleName: actionbridge-dental-staging-calculations-role
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+    Type: AWS::IAM::Role
+  CalculationsFunctionScenariosPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CalculationsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases/*/scenarios
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CalculationsLogGroup:
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${CalculationsFunction}
+      RetentionInDays: 7
+    Type: AWS::Logs::LogGroup
+  CasesFunction:
+    Properties:
+      Architectures:
+      - arm64
+      Code:
+        S3Bucket: ab-dental-staging-artifacts-631367363628-us-east-2
+        S3Key:
+          Ref: CasesArtifactKey
+      Description: Owner-scoped cases, strategy saves and the case ledger (transactional writes)
+      Environment:
+        Variables:
+          APP_ENV:
+            Ref: AppEnv
+          AUTH_MODE: jwt
+          NODE_OPTIONS: --enable-source-maps
+          RETENTION_DAYS:
+            Ref: RetentionDays
+          STAGING_ALLOWED_USER_SUBS:
+            Ref: StagingAllowedUserSubs
+          STAGING_GLOBAL_JOB_DAILY_LIMIT:
+            Ref: StagingGlobalJobDailyLimit
+          STAGING_GLOBAL_SPEECH_DAILY_LIMIT:
+            Ref: StagingGlobalSpeechDailyLimit
+          STAGING_GLOBAL_UPLOAD_DAILY_LIMIT:
+            Ref: StagingGlobalUploadDailyLimit
+          STAGING_JOB_DAILY_LIMIT:
+            Ref: StagingJobDailyLimit
+          STAGING_SPEECH_DAILY_LIMIT:
+            Ref: StagingSpeechDailyLimit
+          STAGING_UPLOAD_DAILY_LIMIT:
+            Ref: StagingUploadDailyLimit
+          TABLE_NAME:
+            Ref: CasesTable
+      FunctionName: actionbridge-dental-staging-cases
+      Handler: index.handler
+      MemorySize: 512
+      Role:
+        Fn::GetAtt:
+        - CasesFunctionRole
+        - Arn
+      Runtime: nodejs22.x
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+      Timeout: 10
+    Type: AWS::Lambda::Function
+  CasesFunctionCreateCasePermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesFunctionGetCasePermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/v1/cases/*
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesFunctionGetLedgerPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/v1/cases/*/ledger
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesFunctionGetPlanComparisonPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/v1/cases/*/plan-comparisons/*
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesFunctionListPlanComparisonsPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/v1/cases/*/plan-comparisons
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesFunctionListStrategiesPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/v1/cases/*/strategies
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesFunctionPatchCasePermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/PATCH/v1/cases/*
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesFunctionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /actionbridge/staging/actionbridge-dental-staging/
+      PermissionsBoundary: arn:aws:iam::631367363628:policy/actionbridge-dental-staging-cases-boundary
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:ConditionCheckItem
+            - dynamodb:Query
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+              - CasesTable
+              - Arn
+        PolicyName: CasesFunctionRolePolicy0
+      RoleName: actionbridge-dental-staging-cases-role
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+    Type: AWS::IAM::Role
+  CasesFunctionSavePlanComparisonPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases/*/plan-comparisons
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesFunctionSaveStrategyPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: CasesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases/*/strategies
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  CasesLogGroup:
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${CasesFunction}
+      RetentionInDays: 7
+    Type: AWS::Logs::LogGroup
+  CasesTable:
+    DeletionPolicy: Delete
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: pk
+        AttributeType: S
+      - AttributeName: sk
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+      - AttributeName: pk
+        KeyType: HASH
+      - AttributeName: sk
+        KeyType: RANGE
+      SSESpecification:
+        SSEEnabled: true
+      TableName: actionbridge-dental-staging-cases
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Delete
+  HealthFunction:
+    Properties:
+      Architectures:
+      - arm64
+      Code:
+        S3Bucket: ab-dental-staging-artifacts-631367363628-us-east-2
+        S3Key:
+          Ref: HealthArtifactKey
+      Description: "GET /health \u2014 status and versions only"
+      Environment:
+        Variables:
+          APP_ENV:
+            Ref: AppEnv
+          AUTH_MODE: jwt
+          NODE_OPTIONS: --enable-source-maps
+          STAGING_ALLOWED_USER_SUBS:
+            Ref: StagingAllowedUserSubs
+          STAGING_GLOBAL_JOB_DAILY_LIMIT:
+            Ref: StagingGlobalJobDailyLimit
+          STAGING_GLOBAL_SPEECH_DAILY_LIMIT:
+            Ref: StagingGlobalSpeechDailyLimit
+          STAGING_GLOBAL_UPLOAD_DAILY_LIMIT:
+            Ref: StagingGlobalUploadDailyLimit
+          STAGING_JOB_DAILY_LIMIT:
+            Ref: StagingJobDailyLimit
+          STAGING_SPEECH_DAILY_LIMIT:
+            Ref: StagingSpeechDailyLimit
+          STAGING_UPLOAD_DAILY_LIMIT:
+            Ref: StagingUploadDailyLimit
+      FunctionName: actionbridge-dental-staging-health
+      Handler: index.handler
+      MemorySize: 512
+      Role:
+        Fn::GetAtt:
+        - HealthFunctionRole
+        - Arn
+      Runtime: nodejs22.x
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+      Timeout: 10
+    Type: AWS::Lambda::Function
+  HealthFunctionHealthPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: HealthFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/health
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  HealthFunctionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /actionbridge/staging/actionbridge-dental-staging/
+      PermissionsBoundary: arn:aws:iam::631367363628:policy/actionbridge-dental-staging-health-boundary
+      RoleName: actionbridge-dental-staging-health-role
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+    Type: AWS::IAM::Role
+  HealthLogGroup:
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${HealthFunction}
+      RetentionInDays: 7
+    Type: AWS::Logs::LogGroup
+  HttpApi:
+    Properties:
+      CorsConfiguration:
+        AllowHeaders:
+        - authorization
+        - content-type
+        - idempotency-key
+        AllowMethods:
+        - GET
+        - POST
+        - PATCH
+        - OPTIONS
+        AllowOrigins:
+          Ref: StagingWebOrigins
+        ExposeHeaders:
+        - x-request-id
+        MaxAge: 600
+      DisableExecuteApiEndpoint: true
+      Name: actionbridge-dental-staging
+      ProtocolType: HTTP
+    Type: AWS::ApiGatewayV2::Api
+  HttpApiCalculationsFunctionCoverageComparisonRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases/{caseId}/coverage-comparison
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCalculationsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCalculationsFunctionEstimateRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases/{caseId}/estimates
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCalculationsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCalculationsFunctionIntegration:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      IntegrationMethod: POST
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CalculationsFunction.Arn}/invocations
+      PayloadFormatVersion: '2.0'
+    Type: AWS::ApiGatewayV2::Integration
+  HttpApiCalculationsFunctionPlanComparisonRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases/{caseId}/plan-comparison
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCalculationsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCalculationsFunctionScenariosRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases/{caseId}/scenarios
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCalculationsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionCreateCaseRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionGetCaseRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: GET /v1/cases/{caseId}
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionGetLedgerRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: GET /v1/cases/{caseId}/ledger
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionGetPlanComparisonRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: GET /v1/cases/{caseId}/plan-comparisons/{comparisonId}
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionIntegration:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      IntegrationMethod: POST
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CasesFunction.Arn}/invocations
+      PayloadFormatVersion: '2.0'
+    Type: AWS::ApiGatewayV2::Integration
+  HttpApiCasesFunctionListPlanComparisonsRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: GET /v1/cases/{caseId}/plan-comparisons
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionListStrategiesRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: GET /v1/cases/{caseId}/strategies
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionPatchCaseRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: PATCH /v1/cases/{caseId}
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionSavePlanComparisonRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases/{caseId}/plan-comparisons
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCasesFunctionSaveStrategyRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases/{caseId}/strategies
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiCasesFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiCognitoJwtAuthorizer:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizerType: JWT
+      IdentitySource:
+      - $request.header.Authorization
+      JwtConfiguration:
+        Audience:
+        - Ref: ExistingUserPoolClientId
+        Issuer:
+          Fn::Sub: https://cognito-idp.${AWS::Region}.amazonaws.com/${ExistingUserPoolId}
+      Name: CognitoJwt
+    Type: AWS::ApiGatewayV2::Authorizer
+  HttpApiHealthFunctionHealthRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: NONE
+      RouteKey: GET /health
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiHealthFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiHealthFunctionIntegration:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      IntegrationMethod: POST
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthFunction.Arn}/invocations
+      PayloadFormatVersion: '2.0'
+    Type: AWS::ApiGatewayV2::Integration
+  HttpApiJobsFunctionAnswerJobRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/jobs/{jobId}/answers
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiJobsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiJobsFunctionCancelJobRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/jobs/{jobId}/cancel
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiJobsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiJobsFunctionCreateJobRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases/{caseId}/jobs
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiJobsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiJobsFunctionCreateUploadRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/cases/{caseId}/uploads
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiJobsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiJobsFunctionGetJobRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: GET /v1/jobs/{jobId}
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiJobsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiJobsFunctionIntegration:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      IntegrationMethod: POST
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobsFunction.Arn}/invocations
+      PayloadFormatVersion: '2.0'
+    Type: AWS::ApiGatewayV2::Integration
+  HttpApiJobsFunctionRetryJobRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/jobs/{jobId}/retry
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiJobsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiJobsFunctionSpeechRoute:
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: HttpApiCognitoJwtAuthorizer
+      RouteKey: POST /v1/speech
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: HttpApiJobsFunctionIntegration
+    Type: AWS::ApiGatewayV2::Route
+  HttpApiStage:
+    DependsOn:
+    - HttpApiCalculationsFunctionCoverageComparisonRoute
+    - HttpApiCalculationsFunctionEstimateRoute
+    - HttpApiCalculationsFunctionPlanComparisonRoute
+    - HttpApiCalculationsFunctionScenariosRoute
+    - HttpApiCasesFunctionCreateCaseRoute
+    - HttpApiCasesFunctionGetCaseRoute
+    - HttpApiCasesFunctionGetLedgerRoute
+    - HttpApiCasesFunctionGetPlanComparisonRoute
+    - HttpApiCasesFunctionListPlanComparisonsRoute
+    - HttpApiCasesFunctionListStrategiesRoute
+    - HttpApiCasesFunctionPatchCaseRoute
+    - HttpApiCasesFunctionSavePlanComparisonRoute
+    - HttpApiCasesFunctionSaveStrategyRoute
+    - HttpApiHealthFunctionHealthRoute
+    - HttpApiJobsFunctionAnswerJobRoute
+    - HttpApiJobsFunctionCancelJobRoute
+    - HttpApiJobsFunctionCreateJobRoute
+    - HttpApiJobsFunctionCreateUploadRoute
+    - HttpApiJobsFunctionGetJobRoute
+    - HttpApiJobsFunctionRetryJobRoute
+    - HttpApiJobsFunctionSpeechRoute
+    Properties:
+      ApiId:
+        Ref: HttpApi
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+      StageName:
+        Ref: AppEnv
+      Tags:
+        httpapi:createdBy: SAM
+    Type: AWS::ApiGatewayV2::Stage
+  JobDeadLetterQueue:
+    Properties:
+      MessageRetentionPeriod: 345600
+      QueueName: actionbridge-dental-staging-dlq
+      SqsManagedSseEnabled: true
+    Type: AWS::SQS::Queue
+  JobQueue:
+    Properties:
+      MessageRetentionPeriod: 3600
+      QueueName: actionbridge-dental-staging-jobs
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+          - JobDeadLetterQueue
+          - Arn
+        maxReceiveCount: 2
+      SqsManagedSseEnabled: true
+      VisibilityTimeout: 360
+    Type: AWS::SQS::Queue
+  JobWorkerFunction:
+    Properties:
+      Architectures:
+      - arm64
+      Code:
+        S3Bucket: ab-dental-staging-artifacts-631367363628-us-east-2
+        S3Key:
+          Ref: JobWorkerArtifactKey
+      Description: "Agent worker \u2014 bounded Bedrock tool loop over the deterministic engine (SQS, batch 1)"
+      Environment:
+        Variables:
+          APP_ENV:
+            Ref: AppEnv
+          AUTH_MODE: jwt
+          BEDROCK_MODEL_ID:
+            Ref: BedrockModelId
+          NODE_OPTIONS: --enable-source-maps
+          RETENTION_DAYS:
+            Ref: RetentionDays
+          STAGING_ALLOWED_USER_SUBS:
+            Ref: StagingAllowedUserSubs
+          STAGING_GLOBAL_JOB_DAILY_LIMIT:
+            Ref: StagingGlobalJobDailyLimit
+          STAGING_GLOBAL_SPEECH_DAILY_LIMIT:
+            Ref: StagingGlobalSpeechDailyLimit
+          STAGING_GLOBAL_UPLOAD_DAILY_LIMIT:
+            Ref: StagingGlobalUploadDailyLimit
+          STAGING_JOB_DAILY_LIMIT:
+            Ref: StagingJobDailyLimit
+          STAGING_SPEECH_DAILY_LIMIT:
+            Ref: StagingSpeechDailyLimit
+          STAGING_UPLOAD_DAILY_LIMIT:
+            Ref: StagingUploadDailyLimit
+          TABLE_NAME:
+            Ref: CasesTable
+          TRANSCRIPTION_JOB_PREFIX:
+            Fn::Sub: actionbridge-${AWS::StackName}_
+          UPLOAD_BUCKET:
+            Ref: UploadBucket
+      FunctionName: actionbridge-dental-staging-job-worker
+      Handler: index.handler
+      MemorySize: 1024
+      Role:
+        Fn::GetAtt:
+        - JobWorkerFunctionRole
+        - Arn
+      Runtime: nodejs22.x
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+      Timeout: 240
+    Type: AWS::Lambda::Function
+  JobWorkerFunctionJobs:
+    DependsOn:
+    - JobWorkerLogGroup
+    Properties:
+      BatchSize: 1
+      EventSourceArn:
+        Fn::GetAtt:
+        - JobQueue
+        - Arn
+      FunctionName:
+        Ref: JobWorkerFunction
+      FunctionResponseTypes:
+      - ReportBatchItemFailures
+      ScalingConfig:
+        MaximumConcurrency: 2
+    Type: AWS::Lambda::EventSourceMapping
+  JobWorkerFunctionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
+      Path: /actionbridge/staging/actionbridge-dental-staging/
+      PermissionsBoundary: arn:aws:iam::631367363628:policy/actionbridge-dental-staging-job-worker-boundary
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+              - CasesTable
+              - Arn
+          - Action: bedrock:InvokeModel
+            Effect: Allow
+            Resource:
+            - Fn::Sub: arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockModelId}
+            - Fn::Sub: arn:aws:bedrock:*::foundation-model/${BedrockFoundationModel}
+          - Action:
+            - s3:GetObject
+            - s3:DeleteObject
+            Effect: Allow
+            Resource:
+              Fn::Sub: ${UploadBucket.Arn}/uploads/*
+          - Action:
+            - transcribe:GetTranscriptionJob
+            - transcribe:DeleteTranscriptionJob
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:transcribe:${AWS::Region}:${AWS::AccountId}:transcription-job/actionbridge-${AWS::StackName}_*
+          - Action:
+            - transcribe:StartTranscriptionJob
+            - textract:DetectDocumentText
+            - textract:StartDocumentTextDetection
+            - textract:GetDocumentTextDetection
+            Effect: Allow
+            Resource: '*'
+        PolicyName: JobWorkerFunctionRolePolicy0
+      RoleName: actionbridge-dental-staging-job-worker-role
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+    Type: AWS::IAM::Role
+  JobWorkerLogGroup:
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${JobWorkerFunction}
+      RetentionInDays: 7
+    Type: AWS::Logs::LogGroup
+  JobsFunction:
+    Properties:
+      Architectures:
+      - arm64
+      Code:
+        S3Bucket: ab-dental-staging-artifacts-631367363628-us-east-2
+        S3Key:
+          Ref: JobsArtifactKey
+      Description: "Agent jobs API \u2014 create, view, answer, retry, cancel (enqueues; never calls the model)"
+      Environment:
+        Variables:
+          APP_ENV:
+            Ref: AppEnv
+          AUTH_MODE: jwt
+          JOB_QUEUE_URL:
+            Ref: JobQueue
+          NODE_OPTIONS: --enable-source-maps
+          RETENTION_DAYS:
+            Ref: RetentionDays
+          STAGING_ALLOWED_USER_SUBS:
+            Ref: StagingAllowedUserSubs
+          STAGING_GLOBAL_JOB_DAILY_LIMIT:
+            Ref: StagingGlobalJobDailyLimit
+          STAGING_GLOBAL_SPEECH_DAILY_LIMIT:
+            Ref: StagingGlobalSpeechDailyLimit
+          STAGING_GLOBAL_UPLOAD_DAILY_LIMIT:
+            Ref: StagingGlobalUploadDailyLimit
+          STAGING_JOB_DAILY_LIMIT:
+            Ref: StagingJobDailyLimit
+          STAGING_SPEECH_DAILY_LIMIT:
+            Ref: StagingSpeechDailyLimit
+          STAGING_UPLOAD_DAILY_LIMIT:
+            Ref: StagingUploadDailyLimit
+          TABLE_NAME:
+            Ref: CasesTable
+          UPLOAD_BUCKET:
+            Ref: UploadBucket
+      FunctionName: actionbridge-dental-staging-jobs
+      Handler: index.handler
+      MemorySize: 512
+      Role:
+        Fn::GetAtt:
+        - JobsFunctionRole
+        - Arn
+      Runtime: nodejs22.x
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+      Timeout: 10
+    Type: AWS::Lambda::Function
+  JobsFunctionAnswerJobPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: JobsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/jobs/*/answers
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  JobsFunctionCancelJobPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: JobsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/jobs/*/cancel
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  JobsFunctionCreateJobPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: JobsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases/*/jobs
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  JobsFunctionCreateUploadPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: JobsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/cases/*/uploads
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  JobsFunctionGetJobPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: JobsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/v1/jobs/*
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  JobsFunctionRetryJobPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: JobsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/jobs/*/retry
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  JobsFunctionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /actionbridge/staging/actionbridge-dental-staging/
+      PermissionsBoundary: arn:aws:iam::631367363628:policy/actionbridge-dental-staging-jobs-boundary
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+              - CasesTable
+              - Arn
+          - Action: sqs:SendMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+              - JobQueue
+              - Arn
+          - Action: s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Sub: ${UploadBucket.Arn}/uploads/*
+          - Action: polly:SynthesizeSpeech
+            Effect: Allow
+            Resource: '*'
+        PolicyName: JobsFunctionRolePolicy0
+      - PolicyDocument:
+          Statement:
+          - Action: dynamodb:UpdateItem
+            Condition:
+              ForAllValues:StringLike:
+                dynamodb:LeadingKeys:
+                - STAGING_QUOTA#*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+              - CasesTable
+              - Arn
+        PolicyName: JobsFunctionRolePolicy1
+      RoleName: actionbridge-dental-staging-jobs-role
+      Tags:
+      - Key: lambda:createdBy
+        Value: SAM
+    Type: AWS::IAM::Role
+  JobsFunctionSpeechPermission:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: JobsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub:
+        - arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/v1/speech
+        - __ApiId__:
+            Ref: HttpApi
+          __Stage__: '*'
+    Type: AWS::Lambda::Permission
+  JobsLogGroup:
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${JobsFunction}
+      RetentionInDays: 7
+    Type: AWS::Logs::LogGroup
+  UploadBucket:
+    DeletionPolicy: Delete
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      BucketName: ab-dental-staging-uploads-631367363628-us-east-2
+      CorsConfiguration:
+        CorsRules:
+        - AllowedHeaders:
+          - '*'
+          AllowedMethods:
+          - POST
+          AllowedOrigins:
+            Ref: StagingWebOrigins
+          MaxAge: 600
+      LifecycleConfiguration:
+        Rules:
+        - AbortIncompleteMultipartUpload:
+            DaysAfterInitiation: 1
+          ExpirationInDays: 1
+          Id: ExpireUploads
+          Prefix: uploads/
+          Status: Enabled
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Delete
+Rules:
+  ExistingCognitoParametersTogether:
+    Assertions:
+    - Assert:
+        Fn::Or:
+        - Fn::And:
+          - Fn::Equals:
+            - Ref: ExistingUserPoolId
+            - ''
+          - Fn::Equals:
+            - Ref: ExistingUserPoolClientId
+            - ''
+        - Fn::And:
+          - Fn::Not:
+            - Fn::Equals:
+              - Ref: ExistingUserPoolId
+              - ''
+          - Fn::Not:
+            - Fn::Equals:
+              - Ref: ExistingUserPoolClientId
+              - ''
+      AssertDescription: ExistingUserPoolId and ExistingUserPoolClientId must be supplied together or both omitted.
+  StagingRequiresApprovedUsers:
+    Assertions:
+    - Assert:
+        Fn::Not:
+        - Fn::Equals:
+          - Ref: StagingAllowedUserSubs
+          - ''
+      AssertDescription: Staging requires approved Cognito sub UUIDs; an empty list cannot allow public access.
+    RuleCondition:
+      Fn::Equals:
+      - Ref: AppEnv
+      - staging
+  StagingRequiresExternalIdentity:
+    Assertions:
+    - Assert:
+        Fn::Not:
+        - Fn::Equals:
+          - Ref: ExistingUserPoolId
+          - ''
+      AssertDescription: ExistingUserPoolId must identify the approved existing external identity.
+    - Assert:
+        Fn::Not:
+        - Fn::Equals:
+          - Ref: ExistingUserPoolClientId
+          - ''
+      AssertDescription: ExistingUserPoolClientId must identify the approved existing external identity.

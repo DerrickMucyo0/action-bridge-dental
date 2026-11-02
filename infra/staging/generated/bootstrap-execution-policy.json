@@ -1,0 +1,81 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Deny",
+      "NotAction": [
+        "apigateway:GET",
+        "apigateway:POST"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "apigateway:POST",
+      "Resource": "arn:aws:apigateway:us-east-2::/apis",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2",
+          "apigateway:Request/ApiName": "actionbridge-dental-staging"
+        },
+        "Bool": {
+          "apigateway:Request/DisableExecuteApiEndpoint": "true"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "apigateway:GET",
+      "Resource": "arn:aws:apigateway:us-east-2::/apis/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Effect": "Deny",
+      "Action": "apigateway:*",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Effect": "Deny",
+      "Action": [
+        "apigateway:PATCH",
+        "apigateway:PUT",
+        "apigateway:DELETE"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Deny",
+      "Action": "apigateway:POST",
+      "NotResource": "arn:aws:apigateway:us-east-2::/apis"
+    },
+    {
+      "Effect": "Deny",
+      "Action": "apigateway:POST",
+      "Resource": "arn:aws:apigateway:us-east-2::/apis",
+      "Condition": {
+        "StringNotEquals": {
+          "apigateway:Request/ApiName": "actionbridge-dental-staging"
+        }
+      }
+    },
+    {
+      "Effect": "Deny",
+      "Action": "apigateway:POST",
+      "Resource": "arn:aws:apigateway:us-east-2::/apis",
+      "Condition": {
+        "BoolIfExists": {
+          "apigateway:Request/DisableExecuteApiEndpoint": "false"
+        }
+      }
+    }
+  ]
+}

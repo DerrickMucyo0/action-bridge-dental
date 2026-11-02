@@ -1,0 +1,254 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OwnLogStreams",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-2:631367363628:log-group:/aws/lambda/actionbridge-dental-staging-job-worker:log-stream:*"
+    },
+    {
+      "Sid": "StagingJobs",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-2:631367363628:table/actionbridge-dental-staging-cases"
+    },
+    {
+      "Sid": "PollStagingWork",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+      ],
+      "Resource": "arn:aws:sqs:us-east-2:631367363628:actionbridge-dental-staging-jobs"
+    },
+    {
+      "Sid": "ReadAndRemoveStagingUploads",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::ab-dental-staging-uploads-631367363628-us-east-2/uploads/*",
+      "Condition": {
+        "StringEquals": {
+          "s3:ResourceAccount": "631367363628"
+        }
+      }
+    },
+    {
+      "Sid": "ChosenNovaProfile",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": "arn:aws:bedrock:us-east-2:631367363628:inference-profile/us.amazon.nova-2-lite-v1:0",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "NovaThroughChosenProfileOnly",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-2-lite-v1:0",
+        "arn:aws:bedrock:us-east-2::foundation-model/amazon.nova-2-lite-v1:0",
+        "arn:aws:bedrock:us-west-2::foundation-model/amazon.nova-2-lite-v1:0"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "bedrock:InferenceProfileArn": "arn:aws:bedrock:us-east-2:631367363628:inference-profile/us.amazon.nova-2-lite-v1:0"
+        }
+      }
+    },
+    {
+      "Sid": "OwnTranscriptionJobs",
+      "Effect": "Allow",
+      "Action": [
+        "transcribe:GetTranscriptionJob",
+        "transcribe:DeleteTranscriptionJob"
+      ],
+      "Resource": "arn:aws:transcribe:us-east-2:631367363628:transcription-job/actionbridge-actionbridge-dental-staging_*"
+    },
+    {
+      "Sid": "RegionalDocumentAndAudioProcessing",
+      "Effect": "Allow",
+      "Action": [
+        "transcribe:StartTranscriptionJob",
+        "textract:DetectDocumentText",
+        "textract:StartDocumentTextDetection",
+        "textract:GetDocumentTextDetection"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "NoOtherActions",
+      "Effect": "Deny",
+      "NotAction": [
+        "bedrock:InvokeModel",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "s3:DeleteObject",
+        "s3:GetObject",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:ReceiveMessage",
+        "textract:DetectDocumentText",
+        "textract:GetDocumentTextDetection",
+        "textract:StartDocumentTextDetection",
+        "transcribe:DeleteTranscriptionJob",
+        "transcribe:GetTranscriptionJob",
+        "transcribe:StartTranscriptionJob"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "NoOtherResources0",
+      "Effect": "Deny",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "NotResource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-2-lite-v1:0",
+        "arn:aws:bedrock:us-east-2:631367363628:inference-profile/us.amazon.nova-2-lite-v1:0",
+        "arn:aws:bedrock:us-east-2::foundation-model/amazon.nova-2-lite-v1:0",
+        "arn:aws:bedrock:us-west-2::foundation-model/amazon.nova-2-lite-v1:0"
+      ]
+    },
+    {
+      "Sid": "NoOtherResources1",
+      "Effect": "Deny",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem"
+      ],
+      "NotResource": [
+        "arn:aws:dynamodb:us-east-2:631367363628:table/actionbridge-dental-staging-cases"
+      ]
+    },
+    {
+      "Sid": "NoOtherResources2",
+      "Effect": "Deny",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "NotResource": [
+        "arn:aws:logs:us-east-2:631367363628:log-group:/aws/lambda/actionbridge-dental-staging-job-worker:log-stream:*"
+      ]
+    },
+    {
+      "Sid": "NoOtherResources3",
+      "Effect": "Deny",
+      "Action": [
+        "s3:DeleteObject",
+        "s3:GetObject"
+      ],
+      "NotResource": [
+        "arn:aws:s3:::ab-dental-staging-uploads-631367363628-us-east-2/uploads/*"
+      ]
+    },
+    {
+      "Sid": "NoOtherResources4",
+      "Effect": "Deny",
+      "Action": [
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:ReceiveMessage"
+      ],
+      "NotResource": [
+        "arn:aws:sqs:us-east-2:631367363628:actionbridge-dental-staging-jobs"
+      ]
+    },
+    {
+      "Sid": "NoOtherResources5",
+      "Effect": "Deny",
+      "Action": [
+        "transcribe:DeleteTranscriptionJob",
+        "transcribe:GetTranscriptionJob"
+      ],
+      "NotResource": [
+        "arn:aws:transcribe:us-east-2:631367363628:transcription-job/actionbridge-actionbridge-dental-staging_*"
+      ]
+    },
+    {
+      "Sid": "RequireContext37",
+      "Effect": "Deny",
+      "Action": [
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::ab-dental-staging-uploads-631367363628-us-east-2/uploads/*",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:ResourceAccount": "631367363628"
+        }
+      }
+    },
+    {
+      "Sid": "RequireContext48",
+      "Effect": "Deny",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": "arn:aws:bedrock:us-east-2:631367363628:inference-profile/us.amazon.nova-2-lite-v1:0",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    },
+    {
+      "Sid": "RequireContext59",
+      "Effect": "Deny",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-2-lite-v1:0",
+        "arn:aws:bedrock:us-east-2::foundation-model/amazon.nova-2-lite-v1:0",
+        "arn:aws:bedrock:us-west-2::foundation-model/amazon.nova-2-lite-v1:0"
+      ],
+      "Condition": {
+        "StringNotEquals": {
+          "bedrock:InferenceProfileArn": "arn:aws:bedrock:us-east-2:631367363628:inference-profile/us.amazon.nova-2-lite-v1:0"
+        }
+      }
+    },
+    {
+      "Sid": "RequireContext710",
+      "Effect": "Deny",
+      "Action": [
+        "transcribe:StartTranscriptionJob",
+        "textract:DetectDocumentText",
+        "textract:StartDocumentTextDetection",
+        "textract:GetDocumentTextDetection"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "us-east-2"
+        }
+      }
+    }
+  ]
+}

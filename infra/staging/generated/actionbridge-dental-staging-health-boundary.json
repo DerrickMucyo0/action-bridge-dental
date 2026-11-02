@@ -1,0 +1,34 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OwnLogStreams",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-2:631367363628:log-group:/aws/lambda/actionbridge-dental-staging-health:log-stream:*"
+    },
+    {
+      "Sid": "NoOtherActions",
+      "Effect": "Deny",
+      "NotAction": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "NoOtherResources0",
+      "Effect": "Deny",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "NotResource": [
+        "arn:aws:logs:us-east-2:631367363628:log-group:/aws/lambda/actionbridge-dental-staging-health:log-stream:*"
+      ]
+    }
+  ]
+}

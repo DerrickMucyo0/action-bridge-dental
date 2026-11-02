@@ -27,6 +27,11 @@ Parameters:
     MaxLength: 369
     AllowedPattern: '^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(,[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}){0,9}$'
     Description: Required for staging; 1-10 approved Cognito sub UUIDs, comma-separated without spaces. Never email addresses or tokens.
+  StagingRuntimePermissionsBoundaryArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:[a-z0-9-]+:iam::[0-9]{12}:policy/([A-Za-z0-9+=,.@_-]+/)*[A-Za-z0-9+=,.@_-]{1,128}$'
+    Description: Required for staging; administrator-owned IAM managed-policy ARN for all generated Lambda role boundaries. IAM requires a policy in this account; verify its existence and reviewed contents separately.
   StagingJobDailyLimit:
     Type: Number
     Default: 10
@@ -115,9 +120,19 @@ Rules:
     Assertions:
       - Assert: !Not [!Equals [!Ref StagingAllowedUserSubs, '']]
         AssertDescription: Staging requires approved Cognito sub UUIDs; an empty list cannot allow public access.
+  StagingRequiresRuntimePermissionsBoundary:
+    RuleCondition: !Equals [!Ref AppEnv, staging]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref StagingRuntimePermissionsBoundaryArn, '']]
+        AssertDescription: Staging requires an administrator-owned runtime permissions boundary.
 
 Conditions:
   IsStaging: !Equals [!Ref AppEnv, staging]
+  # The staging Rule rejects an empty boundary. This condition also makes that
+  # constraint visible to local lint when checking the optional parameter.
+  HasStagingRuntimePermissionsBoundary: !And
+    - !Condition IsStaging
+    - !Not [!Equals [!Ref StagingRuntimePermissionsBoundaryArn, '']]
   UseManagedCognito: !Equals [!Ref ExistingUserPoolId, '']
   PublicRegistrationEnabled: !Equals [!Ref EnableSelfRegistration, 'true']
 
@@ -128,6 +143,8 @@ Globals:
     Handler: index.handler
     MemorySize: 512
     Timeout: 10
+    PermissionsBoundary: !If [HasStagingRuntimePermissionsBoundary, !Ref StagingRuntimePermissionsBoundaryArn, !Ref AWS::NoValue]
+    RolePath: !If [IsStaging, !Sub '/actionbridge/staging/${AWS::StackName}/', !Ref AWS::NoValue]
     Environment:
       Variables:
         APP_ENV: !Ref AppEnv

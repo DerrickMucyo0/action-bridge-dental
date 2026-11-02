@@ -1,0 +1,24 @@
+# Generated offline by infra/staging/build-templates.py; review before any cloud write.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ActionBridge Dental staging bootstrap CREATE: one empty HTTP API, endpoint disabled, no routes or
+  identity resources.'
+Metadata:
+  DeploymentPhase: empty-api-bootstrap-create
+  StagingTarget:
+    Account: '631367363628'
+    Region: us-east-2
+    StackName: actionbridge-dental-staging
+  TargetCheck: The owner must verify caller account, Region and new stack name before cloud operations; metadata
+    is not an IAM restriction.
+Outputs:
+  HttpApiId:
+    Description: Record this exact physical ID before reviewing any backend UPDATE.
+    Value:
+      Ref: HttpApi
+Resources:
+  HttpApi:
+    Properties:
+      DisableExecuteApiEndpoint: true
+      Name: actionbridge-dental-staging
+      ProtocolType: HTTP
+    Type: AWS::ApiGatewayV2::Api
