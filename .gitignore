@@ -11,3 +11,6 @@ backend/.build/
 
 # Private team notes
 PITCH.md
+
+# Private staging parameters, including approved Cognito subject IDs.
+/.staging/
