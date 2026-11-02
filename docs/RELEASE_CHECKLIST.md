@@ -25,14 +25,16 @@ deployment. The repository has not been pushed or deployed during this work.
 The review reports paths and categories only. Credential values are intentionally
 excluded from this checklist and its validation output.
 
-| Finding                                                                                                                                                      | Required follow-up before publication                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The current tracked `docs/EVIDENCE.md`, line 5, still contains shared sign-in credentials. The current root README no longer contains that credential block. | Sanitize the evidence document in a separate cleanup; use private access instructions instead. Never reproduce the values in a diff, issue, report or screenshot.                                                             |
-| Reachable Git history retains credential-bearing versions of `README.md`, `docs/EVIDENCE.md` and the deleted `docs/JUDGING.md`.                              | The administrator must confirm revocation or rotation of the exposed credentials and review remaining account/session access. Removing values from the latest files or adding ignore rules does not remove historical copies. |
+| Finding                                                                                                                                                                                            | Required follow-up before publication                                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Historical review found shared sign-in credentials in `docs/EVIDENCE.md` and the root README. The October 28 current-file review confirms both now direct users to private account access instead. | Keep the current documents sanitized. Historical exposure still requires administrator rotation/revocation confirmation; never reproduce the values in a diff, issue, report or screenshot.                                   |
+| Reachable Git history retains credential-bearing versions of `README.md`, `docs/EVIDENCE.md` and the deleted `docs/JUDGING.md`.                                                                    | The administrator must confirm revocation or rotation of the exposed credentials and review remaining account/session access. Removing values from the latest files or adding ignore rules does not remove historical copies. |
 
-- [ ] Complete the current-document cleanup and administrator rotation/revocation
-      confirmation. Do not test the exposed credentials or contact cloud services
-      to check whether they still work.
+- [x] Current `docs/EVIDENCE.md` and root README no longer contain the published
+      shared-account block (local October 28 review).
+- [ ] Obtain administrator rotation/revocation and session-invalidation
+      confirmation. Do not test exposed credentials or contact cloud services to
+      check whether they still work.
 - [ ] Review the final publication candidate and retained history again without
       printing secrets. Keep original history and attribution; no history rewrite
       is authorized by this ticket. Any unresolved historical exposure blocks
@@ -58,8 +60,10 @@ Current working-tree update: the welcome photograph has been replaced by origina
 CSS dental artwork on web and a native UI bridge visual on mobile, and both
 `welcome.jpg` files have been removed.
 The records below and earlier QA results are retained as historical evidence.
-Historical welcome-image removal is still required before publishing retained Git
-history; the other image-rights questions below remain open.
+Historical welcome-image redistribution rights remain unresolved before publishing
+retained Git history; obtain permission or a separately approved rights-holder
+resolution. Do not rewrite history as part of a local audit. Other image-rights
+questions below remain open.
 
 Current landing-page update: the four `web/public/assets/landing/` placements
 (`s1.jpg`, `s2.jpg`, `s3.jpg`, and `s5.jpg`) now use static, decorative UI previews
@@ -84,6 +88,19 @@ other outstanding publication approvals.
 | `web/public/assets/welcome.jpg` and the identical `mobile/assets/images/welcome.jpg` | The [web attribution notes](../web/README.md#asset-attribution) explicitly leave the source and license unresolved. Record the source, permitted redistribution/use and required credit, or replace/remove the image with authorization before release. |
 | `web/public/assets/landing/s1.jpg`, `s2.jpg`, `s3.jpg`, `s5.jpg`                     | Used as ActionBridge screen imagery; source/ownership documentation was not found. Confirm their provenance and any embedded third-party content. This is an unresolved permission question, not a finding of infringement.                             |
 | Historical `web/public/assets/dental-room.jpg` attribution                           | The web README records an Unsplash photographer credit, but that asset is absent from the current tree. Reconcile the historical note and verify rights before restoring or redistributing the image.                                                   |
+
+The October 28 local follow-up adds verbatim installed dependency/font licenses to
+`web/public/licenses/` and a public third-party notice. Existing reviewed frontend
+ZIPs are unchanged and must be rebuilt and reviewed before publication. See the
+[offline security and rights gate](RELEASE_SECURITY.md); notices do not settle
+project-code, branding or historical-media permissions.
+
+The same follow-up inventories 85 commits and 1,151 blobs reachable from the
+currently available local refs. Those refs do not contain the named historical
+welcome/landing photographs above. This is a different scope from the earlier
+135-commit review: it does not establish that every upstream, archival, reflog or
+unreachable copy is absent or licensed. The earlier provenance questions remain
+recorded; no remote repository was contacted and no history was rewritten.
 
 Preserve existing photographer, font, icon and copyright notices. Original-developer
 approval does not automatically settle third-party asset rights. Include legacy

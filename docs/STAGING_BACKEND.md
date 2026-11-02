@@ -1,6 +1,194 @@
 # Restricted staging backend preparation
 
-This change prepares local code and infrastructure only. It does not deploy, create a change set, change Cognito/Vercel, or publish a release. Use synthetic treatment data. The nine pre-existing web configuration/authentication changes are separate local work and must remain intact.
+Use synthetic treatment data only. Preserve existing application work, uncommitted changes, Git history and teammate infrastructure. The current review permits local work and offline tests; further AWS writes, test invocations and publication require their explicit approvals.
+
+**Current status — October 28:** the stage-separated core reached
+`UPDATE_COMPLETE` with 40 deployed resources and no resource failures. The
+preserved API is `l52iwors8c`; its endpoint remains disabled and the externally
+managed `staging` stage has AutoDeploy off and no attached deployment in the
+recorded post-deployment verification. No fresh AWS read is implied by this
+local review. Do not repeat setup, IAM repairs, recovery or core deployment.
+
+The original synthetic T01 invocation was denied before the handler ran. Its
+consumed attempt and nine evidence files are preserved. The exact `$LATEST`
+permission correction was verified, but the original test window expired at
+October 28, 8 PM EDT. Real backend functional tests, Cognito/API Gateway
+authentication and website-to-staging checks remain incomplete. The owner
+reported the later October 28 access-window update complete; its final live IAM
+readback remains pending. The completion deadline is withdrawn. The selected
+next proposal is October 30, 6–8 PM EDT (`22:00Z` to `00:00Z` October 31), in
+`.staging/completion-review-20261028/phase1-access/`. The
+[completion roadmap](COMPLETION_ROADMAP.md) records the remaining phases and
+separate approval gates. Historical tonight artifacts are preserved; no renewal,
+test or publication is authorized by any proposal's existence. Jobs, uploads, worker processing and live AI
+remain deferred. Independent hosting uses the existing staging Amplify app;
+publishing and adding its exact origin to `StagingWebOrigins` need review.
+
+**Historical October 26 repair record:**
+Recovery A is complete at UPDATE_ROLLBACK_COMPLETE; do not repeat it. The forward
+identity-only literal tagging proposal remains withdrawn. The two recognized
+HTTP replacements pass owner-reported Console validation and combined review;
+live application is unapproved and tagged CreateStage remains runtime-unproven.
+Existing API l52iwors8c is preserved, and the restored template keeps its endpoint
+disabled; direct API-settings reads remain restricted. No new change set or
+deployment is authorized. The setup/evidence sections below describe earlier preparation;
+completed IAM, bucket, identity and artifact prerequisites must not be repeated.
+
+## Scoped collision-read grant and runner
+
+The 32-check plan was printed, not executed. The existing developer user has
+limited permissions; AccessDenied never establishes a free name. The new
+[collision-read policy](../infra/staging/collision-read-policy.json) and
+[approval/authentication-gated runner](../infra/staging/run-collision-checks.py)
+are prepared locally. [Owner instructions](../infra/staging/COLLISION_CHECKS.md)
+describe the eleven read actions, unavoidable IAM/metadata exceptions and manual
+customer-managed-policy grant to the existing user. They do not grant deployment
+or identity-administration permissions.
+
+The runner is offline by default. Actual reads require explicit opt-in and
+successful authentication as the exact developer user in account `631367363628`.
+All failures remain visible and denied/ambiguous results are UNKNOWN. No real
+AWS calls, login, IAM changes, private parameter reads or deployment were used
+to validate this work. Existing code, users, website and Git work are preserved.
+
+Fresh local validation passed **99 infrastructure tests** (including nine read-policy
+scope tests and 26 mocked-runner tests), local IAM-document lint without warnings,
+offline-mode verification and whitespace/link checks. The new managed-policy draft
+is 4,896 compact characters. No live IAM authorization or collision availability
+was inferred from these local results.
+
+## Independent staging preparation (2026-10-24)
+
+The current deployment preparation is in
+[infra/staging/RUNBOOK.md](../infra/staging/RUNBOOK.md). It supersedes the earlier
+single-template deployment guidance below. No AWS login/account API calls,
+resources, permissions, Cognito accounts, Vercel, commits or pushes were changed.
+
+The owner now reports **153 resources**, mostly default networking, with no obvious
+production application infrastructure. **The inventory remains incomplete.**
+This is an owner-reported finding, not a new account inspection by this work.
+Other Regions, services, global IAM and resource policies remain review scopes.
+
+Prepared locally:
+
+- An exact-name manifest and a print-only plan of 32 read-only collision checks.
+  IAM role names, existing reserved paths, both API types and globally ambiguous
+  S3 bucket names are covered. Denied/incomplete checks remain unknown.
+- A disabled empty-API bootstrap template and a separate, fully expanded staging
+  backend template with 69 resources, five explicitly named runtime roles and
+  zero Cognito resources. Both phases retain the same API logical ID, name and
+  `ProtocolType: HTTP`. Only a same-stack UPDATE is permitted for the backend;
+  API replacement and imports must be rejected.
+- Five individual administrator-owned runtime-boundary drafts with exact staging
+  resources, per-role logging/data/processing ceilings and explicit denials for
+  other actions/resources/contexts. The generic source SAM template and dev/demo
+  are unchanged. The legacy common-boundary parameter is accepted but ignored by
+  the generated staging template.
+- A constrained bootstrap execution-policy draft and an offline generator for
+  exact-API-ID backend execution policies plus mandatory guardrail parts. The
+  split backend documents fit IAM managed-policy limits; they are identity
+  policies, not a single execution permissions boundary. All parts need review.
+- A local deterministic ZIP packer producing five content-addressed artifact keys
+  without uploads or identity-parameter reads. Real bundles were not rebuilt or
+  uploaded by this preparation; synthetic bundles exercise the packer in tests.
+
+The existing Cognito accounts and two confirmed testers remain unchanged. The
+Git-ignored private parameter file was not opened or modified; tester UUIDs,
+tokens and environment values were not displayed. Website design, application
+code, Git history and unrelated uncommitted work are preserved.
+
+Fresh local verification passed **64 infrastructure tests**, `sam validate --lint`
+on the shared source and both generated staging templates, pinned `cfn-lint`
+1.40.2 on all three templates without warnings, all generated-artifact consistency
+checks and `git diff --check`. Validation used SAM CLI 1.170.0 and pinned SAM
+translator 1.115.0. Policy/quota/ZIP tests use synthetic inputs; no AWS authorization,
+real collision or paid processing was tested. Browser/application suites were not
+rerun because no application code changed.
+
+**Exact next action:** an already authorized non-root administrator first prints
+the prepared plan with
+`python3 infra/staging/collision-checks.py --profile YOUR_AUTHORIZED_ADMIN_PROFILE`,
+then approves/runs the individual read-only checks and records collision findings
+privately. Printing the plan executes no AWS commands. IAM provisioning and both
+change-set executions require separate approvals after collision/isolation,
+identity, model and spend-control review.
+
+## Earlier generic-template IAM review (2026-10-24)
+
+This historical record describes the generic SAM template before the independent
+staging artifacts above were prepared. Follow the current runbook for deployment;
+its five boundaries and bootstrap CREATE/backend UPDATE replace this older route.
+
+Target: account `631367363628`, Region `us-east-2`, proposed new stack
+`actionbridge-dental-staging`. The owner confirmed that the original ActionBridge
+Dental Vercel website connects to an API in the teammate's separate account
+`195469705669`. It is not a backend deployment in the target account.
+
+The owner-reported checks found no active CloudFormation stacks, Lambda
+functions, API Gateway APIs or DynamoDB tables in Ohio, and no general-purpose S3
+buckets account-wide. **These checks are not a complete account inventory and do
+not establish that the account has no production resources.** Other services,
+Regions, global IAM policies and resource-based grants still need review. This
+pass ran no AWS login or AWS API commands, made no AWS/IAM or Vercel changes, and
+created/pushed no Git commits.
+
+`.staging/parameters.json` was confirmed Git-ignored and untracked, with mode
+`0600` in a `0700` directory. Its contents and the two private approved tester IDs
+were not read, displayed or modified. Do not paste them into chat, logs, commands
+or tracked files. Their current values/configuration were not validated here.
+
+Safe local changes:
+
+- Staging now requires `StagingRuntimePermissionsBoundaryArn`. SAM passes it to
+  all five generated Lambda roles, along with role path
+  `/actionbridge/staging/${AWS::StackName}/`. Dev/demo preserve their previous
+  default role path and omit the new boundary. The ARN parameter only validates
+  syntax; policy existence, same-account ownership and approved contents require
+  administrator verification. This template does not create the boundary policy.
+- The unapplied change-set-preparer draft now restricts preparation/review to
+  `actionbridge-staging-initial-review`. Correct stack/SAM-transform scopes,
+  single-role service-restricted PassRole, artifact account/prefix restrictions,
+  and explicit execution/import denials remain. CREATE-only and disabled automatic
+  imports remain mandatory command/review gates; this policy is not a permissions
+  boundary and cannot certify the principal's other grants.
+- The preflight draft includes read-only inspection of the exact proposed runtime
+  boundary. `cloudformation-trust.json` remains service-only. No apply-ready
+  execution policy or regional API write wildcard was introduced.
+- The execution review corrects HTTP API import/reimport and tagging action
+  mappings and explains why API names/tags do not establish safe scoping for the
+  generated V2 API and all its children. A possible separately authorized empty-API
+  bootstrap requires a new staged-template review; it is not implemented here.
+
+Validation for this review: `sam validate --lint` passed (SAM CLI 1.170.0), pinned
+`cfn-lint` 1.40.2 passed without warnings, and all **23 offline infrastructure
+tests** passed (15 template, eight policy-draft tests; SAM translator 1.115.0).
+Validation tools were installed in a temporary virtual environment under
+`/private/tmp/actionbridge-staging-infra-checks`, without changing application
+dependencies. The SAM translator runs with fictional identity/artifact/boundary values
+and denied network connections. Staging with external identity selects **43
+resources and zero Cognito resources**. These checks do not establish live AWS
+permissions or deployability. Application/browser suites and Lambda bundles were
+not rebuilt by this infrastructure-only review; their earlier evidence below is
+historical.
+
+Deployment remains blocked on an administrator-reviewed inventory/isolation
+decision, immutable runtime-boundary contents and enforcement, a separately
+constrained CloudFormation execution role and caller, API-ID scoping, and artifact
+bucket provisioning. The proposed artifact bucket is absent according to the
+owner's S3 checks. The intended Cognito pool/client's owning account, settings and
+tester membership, model access and spend controls also need verification.
+
+**Next safe owner action:** have an already authorized, non-root AWS administrator
+review [execution-role-review.md](../infra/staging/execution-role-review.md) and
+record the production-isolation decision and proposed boundary/API-scoping design
+for `631367363628` before authorizing any IAM or resource creation. Review only;
+do not attach the draft policies yet. After an actual boundary is separately
+approved/provisioned, its ARN must be added privately as
+`StagingRuntimePermissionsBoundaryArn` in the ignored parameter file, preserving
+existing values. This review did not inspect whether that parameter is present.
+
+The complete local handoff and future, separately gated packaging commands are in
+[infra/staging/README.md](../infra/staging/README.md).
 
 ## Identity and environment selection
 
@@ -69,13 +257,15 @@ npm --prefix web run build
 npm run build:lambda
 python3 -m venv web/.runtime/infra-checks
 web/.runtime/infra-checks/bin/python -m pip install -r infra/requirements-checks.txt
+SAM_CLI_TELEMETRY=0 AWS_EC2_METADATA_DISABLED=true AWS_DEFAULT_REGION=us-east-2 \
+  sam validate --lint --template-file infra/template.yaml --region us-east-2
 AWS_EC2_METADATA_DISABLED=true AWS_DEFAULT_REGION=us-east-2 \
   web/.runtime/infra-checks/bin/cfn-lint --template infra/template.yaml --regions us-east-2
 AWS_EC2_METADATA_DISABLED=true AWS_DEFAULT_REGION=us-east-2 \
   web/.runtime/infra-checks/bin/python -m unittest discover -s infra/tests -v
 ```
 
-Final offline validation passed 583 repository tests across 48 files, 176 browser tests, backend/test and web TypeScript, the web production build, Lambda packaging, infrastructure lint and 11 infrastructure regression tests. The browser suite used installed Chrome through an ignored local runner configuration; Cognito/API calls were mocked. No live AWS authorization, CORS or resource operation was exercised. The web build reports non-blocking dependency annotation and bundle-size warnings.
+The earlier application-preparation record reported 583 repository tests across 48 files, 176 browser tests, backend/test and web TypeScript, the web production build, Lambda packaging, infrastructure lint and 11 infrastructure regression tests. Those are historical results, not fresh checks from the local IAM review above. The browser suite used installed Chrome through an ignored local runner configuration; Cognito/API calls were mocked. No live AWS authorization, CORS or resource operation was exercised. The web build reported non-blocking dependency annotation and bundle-size warnings.
 
 Infrastructure tests use the actual SAM translator with fictional package references and a network-denial guard. They test managed/external identity across dev/demo/staging, paired parameter rules, approval requirements, expanded JWT/CORS, unchanged managed defaults, quota IAM and removed Marketplace permissions. They do not simulate AWS resource creation or certify live account permissions.
 
@@ -89,15 +279,15 @@ Do not run `infra/scripts/smoke-aws.sh` unchanged against this pool: it defaults
 
 ## Costs, rollback and cleanup
 
-As a planning example, 2M input plus 0.5M output Nova tokens across all turns/retries, 100 processed OCR pages, ten batch audio minutes and 10,000 neural Polly characters total about $2.41 before backend/storage/logging/authentication costs. Regional on-demand rates checked during the audit: [Bedrock Ohio catalog](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-2/index.json), [Textract](https://aws.amazon.com/textract/pricing/), [Transcribe](https://aws.amazon.com/transcribe/pricing/), [Polly](https://aws.amazon.com/polly/pricing/). Prices, account allowances and actual usage must be rechecked before deployment. A $10–$20 initial staging allowance with alerts is a planning figure, not a spending cap. Count every model turn/retry, actual PDF pages, queue polling, logs and failed processing. Cognito tier/email, egress and other account costs remain separate.
+The earlier preparation used a planning example of about $2.41 for 2M input plus 0.5M output Nova tokens across all turns/retries, 100 processed OCR pages, ten batch audio minutes and 10,000 neural Polly characters, excluding backend/storage/logging/authentication costs. This is historical, not a current quote; the later pricing note in [infra/staging/README.md](../infra/staging/README.md#model-and-costs) supersedes its model-cost assumption. No rates were refreshed by this IAM review. Pricing references: [Bedrock Ohio catalog](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonBedrock/current/us-east-2/index.json), [Textract](https://aws.amazon.com/textract/pricing/), [Transcribe](https://aws.amazon.com/transcribe/pricing/), [Polly](https://aws.amazon.com/polly/pricing/). Prices, account allowances and actual usage must be rechecked before deployment. A $10–$20 initial staging allowance with alerts is a planning figure, not a spending cap. Count every model turn/retry, actual PDF pages, queue polling, logs and failed processing. Cognito tier/email, egress and other account costs remain separate.
 
 For updates, retain the reviewed packaged template, parameters and physical-resource inventory; roll back through a staging-only change set without replacing data resources. New-stack failure uses CloudFormation's normal rollback. Removing the API URL from the frontend does not stop direct API use or queued work.
 
 For full shutdown, restrict staging entry points and disable/drain staging job processing, identify exact physical resources, empty only the staging upload bucket if required, then delete only that backend stack after separate authorization. Remove orphaned transcription jobs using captured staging job IDs and the exact `actionbridge-${AWS::StackName}_` prefix, plus staging-only artifact prefixes. Table, queue, log and upload deletion destroys synthetic records. TTL/lifecycle deletion is eventual. Preserve the externally referenced pool/client and shared artifact buckets; reject Cognito actions and existing-resource replacements during every change-set review.
 
-## Files changed by this preparation
+## Earlier application-preparation file record
 
-These 32 paths comprise the reviewed preparation. No application dependency, engine, shared fixture, license, contributor-credit or existing web file was changed by this work.
+These 32 paths comprise the earlier application preparation. The current IAM review changes only infrastructure preparation, its tests and staging documentation; it does not repeat or alter the application/browser work listed here.
 
 - `.github/workflows/ci.yml`
 - `backend/src/features/agent-jobs/application/job-runner.ts`
@@ -132,7 +322,7 @@ These 32 paths comprise the reviewed preparation. No application dependency, eng
 - `infra/template.yaml`
 - `infra/tests/test_template.py`
 
-The nine pre-existing uncommitted paths were verified byte-identical against the initial SHA-256 baseline and remain excluded from this change:
+The earlier preparation recorded these nine pre-existing uncommitted paths as byte-identical against its initial SHA-256 baseline and excluded them from its change. The current IAM review preserves the restored website and does not edit these paths:
 
 - `web/README.md`
 - `web/src/components/shell.tsx`

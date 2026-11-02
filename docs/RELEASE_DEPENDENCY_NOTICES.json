@@ -1,0 +1,93 @@
+{
+  "scope": "Installed local runtime packages and shared Zod contracts; not project/brand ownership clearance",
+  "entries": [
+    {
+      "package": "@fontsource/geist",
+      "version": "5.3.0",
+      "license": "OFL-1.1",
+      "source": "web/node_modules/@fontsource/geist/LICENSE",
+      "public_path": "licenses/geist-OFL.txt",
+      "sha256": "71609cbb5c78b5870d712eab73a31d76622635c6ed034ab5cee3b9ecbda8685f"
+    },
+    {
+      "package": "@fontsource/plus-jakarta-sans",
+      "version": "5.3.0",
+      "license": "OFL-1.1",
+      "source": "web/node_modules/@fontsource/plus-jakarta-sans/LICENSE",
+      "public_path": "licenses/plus-jakarta-sans-OFL.txt",
+      "sha256": "e07fd1167c2aaaa6fb965dd66e1e73b13c9c95b76b2d648b6e938780f30b37af"
+    },
+    {
+      "package": "react",
+      "version": "19.2.3",
+      "license": "MIT",
+      "source": "web/node_modules/react/LICENSE",
+      "public_path": "licenses/react-MIT.txt",
+      "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+    },
+    {
+      "package": "react-dom",
+      "version": "19.2.3",
+      "license": "MIT",
+      "source": "web/node_modules/react-dom/LICENSE",
+      "public_path": "licenses/react-dom-MIT.txt",
+      "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+    },
+    {
+      "package": "react-router",
+      "version": "7.18.4",
+      "license": "MIT",
+      "source": "web/node_modules/react-router/LICENSE.md",
+      "public_path": "licenses/react-router-MIT.txt",
+      "sha256": "77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49"
+    },
+    {
+      "package": "react-router-dom",
+      "version": "7.18.4",
+      "license": "MIT",
+      "source": "web/node_modules/react-router-dom/LICENSE.md",
+      "public_path": "licenses/react-router-dom-MIT.txt",
+      "sha256": "77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49"
+    },
+    {
+      "package": "lucide-react",
+      "version": "0.468.0",
+      "license": "ISC",
+      "source": "web/node_modules/lucide-react/LICENSE",
+      "public_path": "licenses/lucide-react-ISC.txt",
+      "sha256": "1e7290b35280a048667bbf0ebabac1c7fd52a75300e8b2946ac165715997f2bc"
+    },
+    {
+      "package": "zod",
+      "version": "4.6.6",
+      "license": "MIT",
+      "source": "node_modules/zod/LICENSE",
+      "public_path": "licenses/zod-MIT.txt",
+      "sha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8"
+    },
+    {
+      "package": "scheduler",
+      "version": "0.27.0",
+      "license": "MIT",
+      "source": "web/node_modules/scheduler/LICENSE",
+      "public_path": "licenses/scheduler-MIT.txt",
+      "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+    },
+    {
+      "package": "cookie",
+      "version": "1.1.1",
+      "license": "MIT",
+      "source": "web/node_modules/cookie/LICENSE",
+      "public_path": "licenses/cookie-MIT.txt",
+      "sha256": "c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858"
+    },
+    {
+      "package": "set-cookie-parser",
+      "version": "2.7.2",
+      "license": "MIT",
+      "source": "web/node_modules/set-cookie-parser/LICENSE",
+      "public_path": "licenses/set-cookie-parser-MIT.txt",
+      "sha256": "c5c6c5183a789d122f267c405f685037efb87e27fcde28ab1dd7378a2d2f5962"
+    }
+  ]
+}

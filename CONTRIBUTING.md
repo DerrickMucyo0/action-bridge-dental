@@ -2,6 +2,12 @@
 
 For teammates joining the build. Read this first, then [mobile/README.md](mobile/README.md). Product rules and the full plan are in [docs/](docs/README.md).
 
+**Current release status:** use the single [final completion tracker](docs/FINAL_COMPLETION_TRACKER.md).
+The team workflow and sample commands below are historical guidance, not fresh
+proof that the current staging endpoint is active or authentication is verified.
+AWS writes, account/password changes, live tests and publication each require
+the owner's separate approval; a command shown here does not grant that approval.
+
 ## 1. What already works
 
 | Part | Status |
