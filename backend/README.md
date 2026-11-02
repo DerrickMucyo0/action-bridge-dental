@@ -2,6 +2,15 @@
 
 HTTP API for cases, estimates and scenarios. Handlers validate with `@actionbridge/contracts` and calculate only through `@actionbridge/benefits-engine`.
 
+The independent staging environment uses account **631367363628**, Ohio, stack
+`actionbridge-dental-staging` and preserved API `l52iwors8c`. Its core deployment
+completed, but the endpoint remains disabled and the external `staging` stage has
+no deployment and AutoDeploy off. Direct synthetic Lambda tests, real Cognito/API
+authentication and browser-to-staging calls still need their approved live tests.
+Jobs, worker processing, uploads and live AI are deferred. The development account
+and deployment commands later in this document are historical team infrastructure;
+they are outside the independent staging workflow and must not be run for it.
+
 ## Routes
 
 | Route | Lambda | Result |
@@ -72,7 +81,12 @@ tests mock transport only. No live DynamoDB/Cognito verification or deployment i
 3. **Answer** — `answerJob(jobId, { expectedRevision: job.caseRevision, answers: [{ questionId, value, unknown, responseMode: 'tap', attachmentId: null }] })` returns the follow-up `jobId`; poll it. Follow-up jobs ask engine questions (`currency` value = cents, `single_select` value = option `id`, `date` value = `YYYY-MM-DD`) or finish `completed` with `cost_summary`, `cost_comparison` and an explanation `notice`.
 4. **Failure** — `failed` with `error.retryable` → offer `retryJob`; otherwise offer manual entry. Cancel with `cancelJob`.
 
-The worker (SQS, batch 1, max 2 concurrent) calls Claude Haiku 4.5 through Bedrock. Its role may invoke only that model and needs `aws-marketplace:ViewSubscriptions` and `aws-marketplace:Subscribe`, which Bedrock requires for Marketplace-billed models. Logs carry job IDs, error names and AWS error text — never the user's description.
+The worker (SQS, batch 1, max 2 concurrent) calls the configured Bedrock model or
+inference profile. The current template default is Amazon Nova 2 Lite (D-18),
+which does not need the earlier Claude Marketplace subscription grants. Model and
+destination-region permissions still require review for the selected profile.
+Worker logs contain job IDs, outcomes and sanitized error names, never the user's
+description. The worker is not part of the independent staging core deployment.
 
 Errors always use the nested envelope `{ error: { code, message, retryable, requestId, issues? } }`. Every response has an `x-request-id` header.
 
@@ -96,7 +110,7 @@ scripts/smoke.mjs        end-to-end checks against any running API
 - **Deployed stages use `AUTH_MODE=jwt` with Cognito (D-10).** The HTTP API JWT authorizer checks the token's issuer and audience before any Lambda runs; the handler uses the `sub` claim as the owner. `/health` is the only unauthenticated route. Demo users are created by an admin (no public sign-up) and hold synthetic data only. Send `Authorization: Bearer <access token>`.
 - **`AUTH_MODE=demo`** is used only by the local server and tests: each device sends a random `x-demo-user-id` (16–64 letters, digits or hyphens). This isolates sessions but is **not authentication**.
 
-## Current deployment
+## Historical team development deployment — outside independent staging
 
 | | |
 |---|---|
@@ -105,7 +119,8 @@ scripts/smoke.mjs        end-to-end checks against any running API
 | Cognito user pool / mobile client ID | `us-east-2_in8mqQVUv` / `kcpgj90ruhsav9tin680padr4` (public, not secrets) |
 | Managed login domain | `https://actionbridge-dental-dev-195469705669.auth.us-east-2.amazoncognito.com` |
 
-Read live values any time with `aws cloudformation describe-stacks --stack-name actionbridge-dental-dev --profile actionbridge --query "Stacks[0].Outputs"`.
+These values describe the separate teammate environment. Do not use its profile,
+deploy or delete commands when working on `actionbridge-dental-staging`.
 
 ## Run locally (no AWS)
 
@@ -116,7 +131,7 @@ API_BASE_URL=http://localhost:3000 npm run smoke -w backend
 
 A phone cannot reach `localhost` on your laptop. Use the laptop's LAN IP on a network without client isolation.
 
-## Sign in to AWS (laptop)
+## Historical development sign-in reference
 
 The CLI profile `actionbridge` uses `aws login` (your AWS console sign-in, temporary credentials). When it expires:
 
@@ -125,7 +140,7 @@ aws login --profile actionbridge --region us-east-2
 aws sts get-caller-identity --profile actionbridge
 ```
 
-## Deploy
+## Historical development deployment reference — not the staging procedure
 
 From the repository root (Git Bash; in PowerShell call `sam` the same way):
 

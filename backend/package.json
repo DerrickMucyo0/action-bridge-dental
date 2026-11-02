@@ -21,7 +21,7 @@
     "@aws-sdk/client-transcribe": "^3.1146.0",
     "@aws-sdk/lib-dynamodb": "^3.1146.0",
     "@aws-sdk/s3-presigned-post": "^3.1146.0",
-    "zod": "^4.6.5"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"

@@ -1,5 +1,5 @@
 import { AgentJobViewSchema, type AgentJobView } from '@actionbridge/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { runJob } from '../src/features/agent-jobs/application/job-runner.js';
 import { groupsFromExtraction, type Extraction } from '../src/features/agent-jobs/domain/extraction.js';
 import { createAgentHarness, ScriptedModel, textTurn, throttled, toolTurn } from './agent-harness.js';
@@ -53,7 +53,7 @@ describe('T5 adaptive agent loop, end to end with a scripted model', () => {
       toolTurn('check_missing_facts'),
       textTurn('I found your plan, your benefit year and three procedures. A few plan details are still needed.'),
       // Follow-up jobs: only the explanation step calls the model.
-      textTurn('Doing everything this benefit year, you would pay an estimated $1,200.00 and your plan $300.00.'),
+      textTurn('{"scenarioId":null}'),
     ]);
     const h = createAgentHarness(model);
     const caseId = await newCase(h);
@@ -120,7 +120,7 @@ describe('T5 adaptive agent loop, end to end with a scripted model', () => {
     const third = await getJob(h, final.body.jobId);
     expect(third.status).toBe('completed');
     expect(third.resultBlocks!.blocks.map((b) => b.type)).toEqual(['cost_summary', 'cost_comparison', 'notice']);
-    expect(JSON.stringify(third.resultBlocks)).toContain('AI explanation');
+    expect(JSON.stringify(third.resultBlocks)).toContain('Calculator explanation');
     const estimate = await h.call('POST /v1/cases/{caseId}/estimates', { caseId }, { expectedRevision: 3 });
     expect(estimate.body.totals.patientPaysCents).toBe(120000);
   });
@@ -302,6 +302,42 @@ describe('T5-04 job reliability', () => {
     expect(await getJob(h, jobId)).toEqual(before);
   });
 
+  it('a stale worker cannot reclaim a newer queued attempt after another delivery failed', async () => {
+    const model = new ScriptedModel([throttled(), toolTurn('record_case_facts', EXTRACTION), textTurn('Found it.')]);
+    const { h, jobId } = await queuedJob(model);
+    const message = h.queue.messages.shift()!;
+    const get = h.jobsRepo.get.bind(h.jobsRepo);
+    let firstRead!: () => void;
+    const snapshotRead = new Promise<void>((resolve) => { firstRead = resolve; });
+    let releaseSnapshot!: () => void;
+    const snapshotRelease = new Promise<void>((resolve) => { releaseSnapshot = resolve; });
+    let held = false;
+    h.jobsRepo.get = async (ownerId, id) => {
+      const snapshot = await get(ownerId, id);
+      if (id === jobId && !held) {
+        held = true;
+        firstRead();
+        await snapshotRelease;
+      }
+      return snapshot;
+    };
+
+    const staleWorker = runJob(h.runner, message);
+    await snapshotRead;
+    expect(await runJob(h.runner, message)).toBe('completed');
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'failed', attempt: 1 });
+    expect((await h.call('POST /v1/jobs/{jobId}/retry', { jobId }, {})).status).toBe(202);
+    releaseSnapshot();
+
+    expect(await staleWorker).toBe('skipped');
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'queued', attempt: 1 });
+    expect(model.requests).toHaveLength(1);
+    expect(h.queue.messages).toHaveLength(1);
+    await h.drain();
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'needs_information', attempt: 2 });
+    expect(model.requests).toHaveLength(3);
+  });
+
   it('a job cancelled while running keeps its cancelled state', async () => {
     const model = new ScriptedModel([toolTurn('record_case_facts', EXTRACTION), textTurn('Found it.')]);
     const { h, jobId } = await queuedJob(model);
@@ -334,6 +370,124 @@ describe('T5-04 job reliability', () => {
     expect(await getJob(h, jobId)).toMatchObject({ status: 'needs_information', attempt: 2 });
   });
 
+  it('a rejected retry enqueue leaves a visible failure instead of a stranded queued job', async () => {
+    const model = new ScriptedModel([throttled()]);
+    const { h, jobId } = await queuedJob(model);
+    await h.drain();
+    h.queue.enqueue = vi.fn().mockRejectedValue(new Error('private queue details'));
+
+    const response = await h.call('POST /v1/jobs/{jobId}/retry', { jobId }, {});
+
+    expect(response).toMatchObject({ status: 503, body: { error: { code: 'UPSTREAM_UNAVAILABLE', retryable: true } } });
+    expect(JSON.stringify(response)).not.toContain('private queue details');
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'failed', attempt: 1, error: { code: 'UPSTREAM_UNAVAILABLE', retryable: true } });
+    expect(h.queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(h.queue.messages).toHaveLength(0);
+    expect(model.requests).toHaveLength(1);
+  });
+
+  it('an uncertain retry enqueue does not overwrite a worker result or dispatch again', async () => {
+    const model = new ScriptedModel([throttled(), toolTurn('record_case_facts', EXTRACTION), textTurn('Found it.')]);
+    const { h, jobId } = await queuedJob(model);
+    await h.drain();
+    h.queue.enqueue = vi.fn(async (message) => {
+      // The service accepted this message before the caller lost its acknowledgement.
+      await runJob(h.runner, message);
+      throw new Error('acknowledgement unavailable');
+    });
+
+    const response = await h.call('POST /v1/jobs/{jobId}/retry', { jobId }, {});
+
+    expect(response).toMatchObject({ status: 503, body: { error: { code: 'UPSTREAM_UNAVAILABLE' } } });
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'needs_information', attempt: 2, error: null });
+    expect(h.queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(h.queue.messages).toHaveLength(0);
+    expect(model.requests).toHaveLength(3);
+  });
+
+  it('a cancellation that wins an uncertain retry enqueue remains cancelled', async () => {
+    const { h, jobId } = await queuedJob(new ScriptedModel([throttled()]));
+    await h.drain();
+    h.queue.enqueue = vi.fn(async () => {
+      await h.call('POST /v1/jobs/{jobId}/cancel', { jobId }, {});
+      throw new Error('acknowledgement unavailable');
+    });
+
+    const response = await h.call('POST /v1/jobs/{jobId}/retry', { jobId }, {});
+
+    expect(response.status).toBe(503);
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'cancelled', attempt: 1 });
+    expect(h.queue.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('a late enqueue rejection cannot replace a newer queued retry with an older attempt', async () => {
+    const model = new ScriptedModel([throttled(), throttled(), toolTurn('record_case_facts', EXTRACTION), textTurn('Found it.')]);
+    const { h, jobId } = await queuedJob(model);
+    await h.drain();
+    let acceptedFirst!: () => void;
+    const firstDelivered = new Promise<void>((resolve) => { acceptedFirst = resolve; });
+    let rejectFirst!: () => void;
+    const firstAcknowledgement = new Promise<void>((resolve) => { rejectFirst = resolve; });
+    const enqueue = h.queue.enqueue.bind(h.queue);
+    let sends = 0;
+    h.queue.enqueue = vi.fn(async (message) => {
+      if (++sends === 1) {
+        await runJob(h.runner, message);
+        acceptedFirst();
+        await firstAcknowledgement;
+        throw new Error('earlier acknowledgement unavailable');
+      }
+      await enqueue(message);
+    });
+
+    const earlierRetry = h.call('POST /v1/jobs/{jobId}/retry', { jobId }, {});
+    await firstDelivered;
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'failed', attempt: 2 });
+    expect((await h.call('POST /v1/jobs/{jobId}/retry', { jobId }, {})).status).toBe(202);
+    rejectFirst();
+    expect((await earlierRetry).status).toBe(503);
+
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'queued', attempt: 2, error: null });
+    expect(h.queue.enqueue).toHaveBeenCalledTimes(2);
+    expect(h.queue.messages).toHaveLength(1);
+    await h.drain();
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'needs_information', attempt: 3 });
+    expect(h.queue.enqueue).toHaveBeenCalledTimes(2);
+  });
+
+  it('a retry loaded before a later failed attempt cannot queue its stale snapshot', async () => {
+    const { h, jobId } = await queuedJob(new ScriptedModel([throttled(), throttled()]));
+    await h.drain();
+    const get = h.jobsRepo.get.bind(h.jobsRepo);
+    let firstRead!: () => void;
+    const snapshotRead = new Promise<void>((resolve) => { firstRead = resolve; });
+    let releaseSnapshot!: () => void;
+    const snapshotRelease = new Promise<void>((resolve) => { releaseSnapshot = resolve; });
+    let held = false;
+    h.jobsRepo.get = async (ownerId, id) => {
+      const snapshot = await get(ownerId, id);
+      if (id === jobId && !held) {
+        held = true;
+        firstRead();
+        await snapshotRelease;
+      }
+      return snapshot;
+    };
+    const enqueue = vi.spyOn(h.queue, 'enqueue');
+
+    const earlierRetry = h.call('POST /v1/jobs/{jobId}/retry', { jobId }, {});
+    await snapshotRead;
+    expect((await h.call('POST /v1/jobs/{jobId}/retry', { jobId }, {})).status).toBe(202);
+    await h.drain();
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'failed', attempt: 2 });
+    releaseSnapshot();
+
+    expect((await earlierRetry).status).toBe(409);
+    expect(await getJob(h, jobId)).toMatchObject({ status: 'failed', attempt: 2 });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(h.queue.messages).toHaveLength(0);
+  });
+
   it('a model that keeps calling tools is stopped by the turn and tool limits', async () => {
     const loops = Array.from({ length: 20 }, (_, n) => toolTurn('check_missing_facts', {}, `loop-${n}`));
     const model = new ScriptedModel(loops);
@@ -351,7 +505,7 @@ describe('T5-04 job reliability', () => {
     const comparison = compareSchedules({ caseRevision: 1, currency: 'USD', coverageMode: 'insured', policy: fixture.policy, planYears: fixture.planYears, procedures: fixture.procedures });
     if (comparison.status !== 'estimated') throw new Error('fixture should estimate');
     await expect(explainComparison(new ScriptedModel([textTurn('You save $999.00 by waiting.')]), comparison)).resolves.toBeNull();
-    await expect(explainComparison(new ScriptedModel([textTurn('Moving the crown is estimated at $725.00, a $475.00 difference.')]), comparison)).resolves.toContain('$725.00');
+    await expect(explainComparison(new ScriptedModel([textTurn(JSON.stringify({ scenarioId: comparison.alternatives[0]!.scenarioId }))]), comparison)).resolves.toContain('$725.00');
   });
 });
 
@@ -377,6 +531,53 @@ describe('answers and access', () => {
     const { h, caseId, jobId } = await waitingJob();
     const declined = await h.call('POST /v1/jobs/{jobId}/answers', { jobId }, { expectedRevision: 1, answers: [answer('confirm-1', false), { ...answer('confirm-2', null), unknown: true }] });
     expect(declined.status).toBe(202);
+    expect((await h.call('GET /v1/cases/{caseId}', { caseId })).body.caseRevision).toBe(1);
+  });
+
+  it('concurrent unchanged answers enqueue only one follow-up job', async () => {
+    const { h, caseId, jobId } = await waitingJob();
+    const originalGet = h.jobsRepo.get.bind(h.jobsRepo);
+    let reads = 0;
+    let releaseBoth!: () => void;
+    const bothRead = new Promise<void>((resolve) => { releaseBoth = resolve; });
+    vi.spyOn(h.jobsRepo, 'get').mockImplementation(async (ownerId, id) => {
+      const job = await originalGet(ownerId, id);
+      // Make both requests observe the open step before either can close it.
+      if (id === jobId && reads < 2) {
+        reads++;
+        if (reads === 2) releaseBoth();
+        await bothRead;
+      }
+      return job;
+    });
+    const request = { expectedRevision: 1, answers: [{ ...answer('confirm-1', null), unknown: true }] };
+    const results = await Promise.all([
+      h.call('POST /v1/jobs/{jobId}/answers', { jobId }, request),
+      h.call('POST /v1/jobs/{jobId}/answers', { jobId }, request),
+    ]);
+    expect(results.map((result) => result.status).sort()).toEqual([202, 409]);
+    expect(h.queue.messages).toHaveLength(1);
+    expect((await h.call('GET /v1/cases/{caseId}', { caseId })).body.caseRevision).toBe(1);
+    expect((await getJob(h, jobId)).status).toBe('completed');
+  });
+
+  it('a cancellation winning the answer close prevents follow-up work', async () => {
+    const { h, caseId, jobId } = await waitingJob();
+    const originalPut = h.jobsRepo.put.bind(h.jobsRepo);
+    let cancelled = false;
+    vi.spyOn(h.jobsRepo, 'put').mockImplementation(async (job, condition) => {
+      if (job.jobId === jobId && job.status === 'completed' && !cancelled) {
+        cancelled = true;
+        await originalPut({ ...job, status: 'cancelled' }, { status: ['needs_information'] });
+      }
+      return originalPut(job, condition);
+    });
+    const response = await h.call('POST /v1/jobs/{jobId}/answers', { jobId }, {
+      expectedRevision: 1, answers: [answer('confirm-1', false)],
+    });
+    expect(response.status).toBe(409);
+    expect(h.queue.messages).toHaveLength(0);
+    expect((await getJob(h, jobId)).status).toBe('cancelled');
     expect((await h.call('GET /v1/cases/{caseId}', { caseId })).body.caseRevision).toBe(1);
   });
 

@@ -164,16 +164,21 @@ describe('U-06 documents and photos: read → same verified assistant', () => {
 
   it('reads the page, proposes facts quoted from the document, and deletes the file', async () => {
     const store = new FakeUploads();
+    const documentReads: { bucket: string; key: string; identity: { jobId: string; documentId: string } }[] = [];
     const model = new ScriptedModel([
       toolTurn('record_case_facts', { procedures: [{ label: 'Crown', category: 'major', providerChargeCents: 100000, quote: 'Crown (D2740) fee $1,000.00' }] }),
       textTurn('I found one procedure.'),
     ]);
-    const h = createAgentHarness(model, { uploads: store, reader: reader(LINES) });
+    const h = createAgentHarness(model, { uploads: store, reader: {
+      readLines: async (bucket, key, identity) => { documentReads.push({ bucket, key, identity }); return LINES; },
+    } });
     const caseId = await caseFor(h);
     const uploadId = await uploaded(h, store, caseId, 'document', 'application/pdf', PDF);
     const job = await startJob(h, caseId, 'analyze_document', uploadId);
 
     expect(job.status).toBe('needs_information');
+    expect(documentReads).toEqual([{ bucket: store.bucket,
+      key: uploadKey(`demo:${MAYA}`, caseId, uploadId), identity: { jobId: job.jobId, documentId: uploadId } }]);
     const confirm = job.questions.blocks.find((b: { inputType?: string }) => b.inputType === 'fact_review');
     expect(confirm).toMatchObject({ candidateValue: 'Crown (major service) · charge $1,000.00', reason: 'From your document: “Crown (D2740) fee $1,000.00”' });
     expect(job.events.map((e: { summary: string }) => e.summary)).toContain('Read 3 lines of text');
