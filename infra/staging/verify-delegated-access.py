@@ -67,6 +67,7 @@ class AwsReads:
         # reads are not independent at the CLI credential layer. Fail closed if
         # another supported workflow process is already using this profile.
         lock_path = D.ROOT / ".staging/delegated-access-cli.lock"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
         with lock_path.open("a") as lock:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

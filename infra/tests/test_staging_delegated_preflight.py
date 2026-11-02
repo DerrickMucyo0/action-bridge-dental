@@ -13,6 +13,19 @@ SPEC.loader.exec_module(V)
 
 
 class DelegatedPreflightTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import test_staging_http_stage_tagging as TAGGING
+        cls._temp_dir = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls._temp_dir.cleanup)
+        source = Path(cls._temp_dir.name)
+        proposed = TAGGING.PROPOSAL.proposal_documents(TAGGING.PREVIOUS.recovery_a_baseline())
+        for name, policy in proposed.items():
+            (source / name).write_text(json.dumps(policy, indent=2) + "\n")
+        patcher = patch.object(V.D, "POLICY_SOURCE", source)
+        patcher.start()
+        cls.addClassCleanup(patcher.stop)
+
     def test_root_other_profiles_static_overrides_and_user_sessions_fail_before_network(self):
         with tempfile.TemporaryDirectory() as temp:
             config = Path(temp) / "config"

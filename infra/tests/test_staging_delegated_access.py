@@ -62,6 +62,23 @@ def deployer_decision(action, resource, context=None, extra=None):
 
 
 class DelegatedAccessTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import shutil
+        import test_staging_http_stage_tagging as TAGGING
+        staging_root = D.ROOT / ".staging"
+        created_staging = not staging_root.exists()
+        created_source = not D.POLICY_SOURCE.exists()
+        if created_source:
+            D.POLICY_SOURCE.mkdir(parents=True, exist_ok=True)
+            proposed = TAGGING.PROPOSAL.proposal_documents(TAGGING.PREVIOUS.recovery_a_baseline())
+            for name, policy in proposed.items():
+                (D.POLICY_SOURCE / name).write_text(json.dumps(policy, indent=2) + "\n")
+            if created_staging:
+                cls.addClassCleanup(shutil.rmtree, staging_root, True)
+            else:
+                cls.addClassCleanup(shutil.rmtree, D.POLICY_SOURCE, True)
+
     def test_quotas_dependencies_and_mfa_trust(self):
         template = D.access_template()
         resources = template["Resources"]
