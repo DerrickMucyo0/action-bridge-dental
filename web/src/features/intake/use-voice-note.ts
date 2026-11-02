@@ -3,6 +3,7 @@ import { MAX_UPLOAD_BYTES, recordingType } from '../../domain/composer';
 import { asApiError, uploadToSlot } from '../../services/api';
 import { useApi } from '../../state/auth';
 import { waitForJob } from '../../state/use-job';
+import { backgroundJobsEnabled } from '../../config';
 
 export const MAX_VOICE_SECONDS = 90;
 
@@ -35,6 +36,7 @@ export function useVoiceNote({
   const startedAt = useRef(0);
   const cancelled = useRef(false);
   const format =
+    backgroundJobsEnabled &&
     typeof window !== 'undefined' &&
     typeof window.MediaRecorder !== 'undefined' &&
     !!navigator.mediaDevices?.getUserMedia

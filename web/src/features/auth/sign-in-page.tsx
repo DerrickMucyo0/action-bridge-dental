@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { WelcomeVisual } from '../../components/welcome-visual';
-import { appConfig as config } from '../../config';
+import { appConfig as config, publicAccountActionsEnabled } from '../../config';
 import { CognitoError } from '../../services/cognito';
 import { useAuth } from '../../state/auth';
 import { PublicAccountForm, type PublicMode } from './public-account-form';
@@ -28,10 +28,11 @@ export function SignInPage() {
   const [params, setParams] = useSearchParams();
   const requested = params.get('mode');
   const mode: Mode =
-    requested === 'create' ||
-    requested === 'forgot' ||
-    requested === 'verify' ||
-    requested === 'reset'
+    publicAccountActionsEnabled &&
+    (requested === 'create' ||
+      requested === 'forgot' ||
+      requested === 'verify' ||
+      requested === 'reset')
       ? requested
       : 'signin';
   const [notice, setNotice] = useState<string | null>(null);
@@ -76,6 +77,7 @@ export function SignInPage() {
 
   const go = (next: Mode, message?: string) => {
     if (requestPending.current) return;
+    if (!publicAccountActionsEnabled && next !== 'signin') return;
     setError(null);
     setNotice(message ?? null);
     setUnconfirmed(false);
@@ -203,6 +205,13 @@ export function SignInPage() {
                 VITE_* settings and rebuild.
               </p>
             )}
+            {config.ok && !publicAccountActionsEnabled && !session && (
+              <p className="si-notice" role="status">
+                Use an existing approved account. Account creation, verification
+                and password reset are unavailable in this version. Contact the
+                staging owner for account help.
+              </p>
+            )}
             {config.ok && (notice || note) && !error && !session && (
               <p className="si-notice" role="status">
                 {notice || note}
@@ -285,14 +294,16 @@ export function SignInPage() {
                 <div className="si-field">
                   <div className="si-field-head">
                     <label htmlFor="si-password">Password</label>
-                    <button
-                      type="button"
-                      className="si-link"
-                      disabled={busy}
-                      onClick={() => go('forgot')}
-                    >
-                      Forgot password?
-                    </button>
+                    {publicAccountActionsEnabled && (
+                      <button
+                        type="button"
+                        className="si-link"
+                        disabled={busy}
+                        onClick={() => go('forgot')}
+                      >
+                        Forgot password?
+                      </button>
+                    )}
                   </div>
                   <input
                     id="si-password"
@@ -331,30 +342,34 @@ export function SignInPage() {
               />
             )}
 
-            {unconfirmed && mode === 'signin' && (
-              <div className="si-switch">
-                <button
-                  type="button"
-                  className="si-link"
-                  disabled={busy}
-                  onClick={() => go('verify')}
-                >
-                  Verify email
-                </button>
-              </div>
-            )}
-            {!session && (mode === 'signin' || mode === 'create') && (
-              <div className="si-switch">
-                <button
-                  type="button"
-                  className="si-link"
-                  disabled={busy}
-                  onClick={() => go('verify')}
-                >
-                  Already have a verification code?
-                </button>
-              </div>
-            )}
+            {publicAccountActionsEnabled &&
+              unconfirmed &&
+              mode === 'signin' && (
+                <div className="si-switch">
+                  <button
+                    type="button"
+                    className="si-link"
+                    disabled={busy}
+                    onClick={() => go('verify')}
+                  >
+                    Verify email
+                  </button>
+                </div>
+              )}
+            {publicAccountActionsEnabled &&
+              !session &&
+              (mode === 'signin' || mode === 'create') && (
+                <div className="si-switch">
+                  <button
+                    type="button"
+                    className="si-link"
+                    disabled={busy}
+                    onClick={() => go('verify')}
+                  >
+                    Already have a verification code?
+                  </button>
+                </div>
+              )}
             <div className="si-switch">
               {session ? (
                 <>
@@ -373,7 +388,7 @@ export function SignInPage() {
                     Use a different account
                   </button>
                 </>
-              ) : mode === 'signin' ? (
+              ) : mode === 'signin' && publicAccountActionsEnabled ? (
                 <>
                   <span>New to ActionBridge?</span>
                   <button
@@ -385,7 +400,7 @@ export function SignInPage() {
                     Create an account
                   </button>
                 </>
-              ) : (
+              ) : mode !== 'signin' ? (
                 <>
                   <span>
                     {mode === 'create'
@@ -401,7 +416,7 @@ export function SignInPage() {
                     {mode === 'create' ? 'Sign in' : 'Back to sign in'}
                   </button>
                 </>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ import {
   useVoiceGuidance,
 } from '../voice/voice';
 import { Button } from './ui';
+import { backgroundJobsEnabled } from '../config';
 
 /**
  * Reads text aloud for people who prefer listening: Amazon Polly's natural voice, or the browser
@@ -23,6 +24,7 @@ export function ListenButton({
   const api = useApi();
   const [state, setState] = useState<'idle' | 'loading' | 'playing'>('idle');
   useEffect(() => () => stopSpeaking(), [text]);
+  if (!backgroundJobsEnabled) return null;
 
   const play = async () => {
     if (state !== 'idle') {
@@ -61,6 +63,7 @@ export function ListenButton({
 /** Turns voice guidance on or off: approved screens read aloud and accept spoken answers. */
 export function VoiceToggle({ compact = false }: { compact?: boolean }) {
   const on = useVoiceGuidance();
+  if (!backgroundJobsEnabled) return null;
   return (
     <Button
       variant={on ? 'primary' : 'secondary'}

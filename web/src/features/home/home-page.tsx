@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Notice, Orb } from '../../components/ui';
+import { backgroundJobsEnabled } from '../../config';
 import { treatmentTitle } from '../../domain/model';
 import { isSampleCase } from '../../domain/provenance';
 import { sampleCaseRequest } from '../../domain/sample';
@@ -55,48 +56,58 @@ export function HomePage() {
           <p className="eyebrow">Hi, {session?.name.split(' ')[0]}</p>
           <h2>Let's make sense of your dental costs.</h2>
           <p className="home-description muted">
-            Tell me about your treatment or add an estimate. I'll ask only for
-            what's missing.
+            {backgroundJobsEnabled
+              ? "Tell me about your treatment or add an estimate. I'll ask only for what's missing."
+              : 'Enter treatment and plan details to compare estimated costs. Use made-up details in this demo.'}
           </p>
-          <Card className="input-methods">
-            <Button
-              icon={Mic}
-              className="full speak-button"
-              onClick={() => navigate('/intake/speak')}
-            >
-              Speak
-            </Button>
-            <div className="method-grid">
+          {backgroundJobsEnabled ? (
+            <Card className="input-methods">
               <Button
-                variant="secondary"
-                icon={Upload}
-                onClick={() => navigate('/intake/upload')}
+                icon={Mic}
+                className="full speak-button"
+                onClick={() => navigate('/intake/speak')}
               >
-                Upload
+                Speak
               </Button>
-              <Button
-                variant="secondary"
-                icon={Camera}
-                onClick={() => navigate('/intake/photo')}
-              >
-                Photo
-              </Button>
-              <Button
-                variant="secondary"
-                icon={Keyboard}
-                onClick={() => navigate('/intake/type')}
-              >
-                Type
-              </Button>
-            </div>
-          </Card>
+              <div className="method-grid">
+                <Button
+                  variant="secondary"
+                  icon={Upload}
+                  onClick={() => navigate('/intake/upload')}
+                >
+                  Upload
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={Camera}
+                  onClick={() => navigate('/intake/photo')}
+                >
+                  Photo
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={Keyboard}
+                  onClick={() => navigate('/intake/type')}
+                >
+                  Type
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <Notice>
+              Assistant analysis, document uploads and voice are unavailable in
+              this version. Manual entry and cost comparisons remain available.
+            </Notice>
+          )}
           <div className="sample-start">
             <Button
               variant="ghost"
               icon={PencilLine}
               onClick={() => navigate('/intake/manual')}
             >
-              Prefer a form? Enter details step by step
+              {backgroundJobsEnabled
+                ? 'Prefer a form? Enter details step by step'
+                : 'Enter details step by step'}
             </Button>
             <Button
               variant="ghost"
@@ -151,11 +162,21 @@ export function HomePage() {
         </button>
       )}
       <ol className="how-it-works">
-        {[
-          ['Tell me', 'Speak, type or add a page.'],
-          ['Check', 'Confirm what I found and answer what’s missing.'],
-          ['Compare', 'See costs by timing, then save a plan.'],
-        ].map(([title, detail], i) => (
+        {(backgroundJobsEnabled
+          ? [
+              ['Tell me', 'Speak, type or add a page.'],
+              ['Check', 'Confirm what I found and answer what’s missing.'],
+              ['Compare', 'See costs by timing, then save a plan.'],
+            ]
+          : [
+              [
+                'Enter details',
+                'Add what you know about treatment and coverage.',
+              ],
+              ['Check', 'Review your details and keep unknown values empty.'],
+              ['Compare', 'See estimated costs, then save a plan.'],
+            ]
+        ).map(([title, detail], i) => (
           <li key={title}>
             <span className="step-number">{i + 1}</span>
             <div>

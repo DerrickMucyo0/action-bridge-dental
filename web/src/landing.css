@@ -656,6 +656,17 @@ html:has(.lp) {
   max-width: 440px;
   text-wrap: pretty;
 }
+.lp-preview-notice {
+  margin-top: 16px;
+  max-width: 440px;
+  padding: 12px 14px;
+  border: 1px solid rgba(20, 107, 77, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
 .lp-hero-cta {
   display: flex;
   flex-wrap: wrap;

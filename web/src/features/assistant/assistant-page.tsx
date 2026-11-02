@@ -45,6 +45,8 @@ import { useApi } from '../../state/auth';
 import { useCase, useResults } from '../../state/case-store';
 import { useJob } from '../../state/use-job';
 import { ListenButton, VoiceToggle } from '../../components/listen';
+import { BackgroundUnavailable } from '../../components/background-unavailable';
+import { backgroundJobsEnabled } from '../../config';
 import {
   canListen,
   listenOnce,
@@ -61,11 +63,30 @@ import {
  * that come from the calculator for the exact revision — never from the assistant's text.
  */
 export function AssistantPage() {
+  return backgroundJobsEnabled ? (
+    <EnabledAssistantPage />
+  ) : (
+    <BackgroundUnavailable />
+  );
+}
+
+function EnabledAssistantPage() {
   const { jobId } = useParams<{ jobId: string }>();
-  const { job, error, timedOut, refresh } = useJob(jobId);
+  const { job, error, timedOut, refresh, acceptUpdate, isCurrentSubscription } =
+    useJob(jobId);
   const api = useApi();
   const navigate = useNavigate();
   const [actionError, setActionError] = useState<ApiError | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const cancelAction = useRef<object | null>(null);
+  useEffect(() => {
+    setActionError(null);
+    setCancelling(false);
+    cancelAction.current = null;
+    return () => {
+      cancelAction.current = null;
+    };
+  }, [api, jobId]);
 
   if (error)
     return (
@@ -87,13 +108,27 @@ export function AssistantPage() {
         job={job}
         timedOut={timedOut}
         actionError={actionError}
+        cancelling={cancelling}
         onRefresh={() => void refresh()}
         onCancel={async () => {
+          if (cancelAction.current) return;
+          const id = job.jobId;
+          const action = {};
+          cancelAction.current = action;
+          const stillCurrent = () =>
+            cancelAction.current === action && isCurrentSubscription();
+          setCancelling(true);
+          setActionError(null);
           try {
-            await api.cancelJob(job.jobId);
-            navigate('/facts');
+            const next = await api.cancelJob(id);
+            if (stillCurrent()) acceptUpdate(next);
           } catch (caught) {
-            setActionError(asApiError(caught));
+            if (stillCurrent()) setActionError(asApiError(caught));
+          } finally {
+            if (stillCurrent()) {
+              cancelAction.current = null;
+              setCancelling(false);
+            }
           }
         }}
       />
@@ -105,9 +140,15 @@ export function AssistantPage() {
     return (
       <div className="page narrow">
         <Notice>
-          You stopped the assistant. Nothing was changed. You can start again
-          any time.
+          The assistant is stopped. Your saved details are still available.
         </Notice>
+        <Button
+          onClick={() =>
+            navigate(`/intake/manual?caseId=${encodeURIComponent(job.caseId)}`)
+          }
+        >
+          Enter details manually
+        </Button>
         <Button onClick={() => navigate('/')}>Back to Home</Button>
       </div>
     );
@@ -151,12 +192,14 @@ function Working({
   job,
   timedOut,
   actionError,
+  cancelling,
   onRefresh,
   onCancel,
 }: {
   job: AgentJobView;
   timedOut: boolean;
   actionError: ApiError | null;
+  cancelling: boolean;
   onRefresh: () => void;
   onCancel: () => void;
 }) {
@@ -227,7 +270,7 @@ function Working({
         )}
         {actionError && <ApiNotice error={actionError} />}
         <div className="actions">
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="ghost" busy={cancelling} onClick={onCancel}>
             Stop
           </Button>
         </div>
@@ -816,7 +859,7 @@ function QuestionCard({
 
 function Finished({ job }: { job: AgentJobView }) {
   const navigate = useNavigate();
-  const { reload } = useCase();
+  const { caseId, record, loading, error, open, reload } = useCase();
   const blocks = job.resultBlocks?.blocks ?? [];
   const hasEstimate = blocks.some((b) => b.type === 'cost_summary');
   const notices = blocks.filter(
@@ -826,16 +869,52 @@ function Finished({ job }: { job: AgentJobView }) {
     (b): b is Extract<UiBlock, { type: 'next_step' }> => b.type === 'next_step',
   );
   useEffect(() => {
-    void reload();
+    // A saved job may be opened after the user selected a different case.
+    // Case revisions are local to each case, so the revision alone is not a key.
+    if (caseId !== job.caseId) open(job.caseId);
+    else void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job.jobId]);
+  }, [job.jobId, job.caseId, caseId]);
+  if (caseId !== job.caseId || loading || (!record && !error))
+    return (
+      <div className="page narrow centered" role="status">
+        <Orb size={120} active />
+        <p className="muted">Opening this analysis’s saved case…</p>
+      </div>
+    );
+  if (error)
+    return (
+      <div className="page narrow stack">
+        <PageHeading title="Couldn’t open this analysis’s case" />
+        <ApiNotice error={error} onRetry={() => void reload()} />
+        <Button onClick={() => navigate('/')}>Back to Home</Button>
+      </div>
+    );
+  if (!record || record.caseRevision !== job.caseRevision)
+    return (
+      <div className="page narrow stack">
+        <PageHeading title="Review your updated details" />
+        <Notice>
+          Your details have changed since this analysis. Review the current
+          details and recalculate before using an estimate.
+        </Notice>
+        <Button onClick={() => navigate('/facts')}>
+          Check current details
+        </Button>
+        <Button variant="secondary" onClick={() => navigate('/')}>
+          Back to Home
+        </Button>
+      </div>
+    );
   return (
     <div className="page medium assistant-page">
       <div className="composer-heading">
         <Orb size={110} success={hasEstimate} alert={!hasEstimate} />
         <h2>{hasEstimate ? 'Your estimate is ready' : 'Almost there'}</h2>
       </div>
-      {hasEstimate && <EstimateSummary revision={job.caseRevision} />}
+      {hasEstimate && (
+        <EstimateSummary caseId={job.caseId} revision={job.caseRevision} />
+      )}
       {notices.map((n) => (
         <AssistantMessage key={n.id} title={n.title} body={n.body} />
       ))}
@@ -855,13 +934,21 @@ function Finished({ job }: { job: AgentJobView }) {
 }
 
 /** Numbers come from the calculator for this exact revision. */
-function EstimateSummary({ revision }: { revision: number }) {
+function EstimateSummary({
+  caseId,
+  revision,
+}: {
+  caseId: string;
+  revision: number;
+}) {
   const api = useApi();
   const { record } = useCase();
   const { status, data, error, retry, comparison } = useResults();
+  const matchesCase =
+    record?.caseId === caseId && record.caseRevision === revision;
   // Voice guidance reads the plain-language result as soon as it is ready.
   const speech =
-    record && data && comparison
+    matchesCase && record && data && comparison
       ? `Your estimate is ready. ${
           plainSummary({
             comparison: comparison.baseline,
@@ -879,7 +966,7 @@ function EstimateSummary({ revision }: { revision: number }) {
         }`
       : null;
   useAutoRead(api, speech);
-  if (!record || record.caseRevision !== revision)
+  if (!matchesCase)
     return <p className="muted">Loading the calculator’s numbers…</p>;
   if (status === 'error' && error)
     return <ApiNotice error={error} onRetry={retry} />;
@@ -986,7 +1073,10 @@ function Failed({
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<ApiError | null>(null);
+  const canRetry =
+    job.error?.retryable === true && job.attempt < job.maxAttempts;
   const retry = async () => {
+    if (busy || !canRetry) return;
     setBusy(true);
     setFailure(null);
     try {
@@ -1004,22 +1094,31 @@ function Failed({
       <Notice tone="warning">
         {job.error?.message ?? 'The assistant could not finish.'}
         <span className="block small">
-          Your case is unchanged.
+          Your saved details are still available.
           {job.error?.requestId ? ` Reference: ${job.error.requestId}` : ''}
         </span>
       </Notice>
+      {job.error?.retryable && !canRetry && (
+        <p className="small muted">
+          This analysis has reached its retry limit. You can continue by
+          entering details manually.
+        </p>
+      )}
       {failure && <ApiNotice error={failure} />}
       <div className="actions center">
-        {job.error?.retryable && (
+        {canRetry && (
           <Button busy={busy} onClick={() => void retry()}>
             Try again
           </Button>
         )}
         <Button
-          variant={job.error?.retryable ? 'secondary' : 'primary'}
-          onClick={() => navigate('/questions')}
+          variant={canRetry ? 'secondary' : 'primary'}
+          disabled={busy}
+          onClick={() =>
+            navigate(`/intake/manual?caseId=${encodeURIComponent(job.caseId)}`)
+          }
         >
-          Answer questions instead
+          Enter details manually
         </Button>
       </div>
     </div>

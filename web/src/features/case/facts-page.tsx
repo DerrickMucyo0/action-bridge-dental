@@ -35,6 +35,7 @@ import { asApiError, type ApiError } from '../../services/api';
 import { useCase, useResults } from '../../state/case-store';
 import { ApiNotice } from '../assistant/assistant-page';
 import { CaseEditor } from '../intake/manual-page';
+import { backgroundJobsEnabled } from '../../config';
 import { validateCase } from '../intake/case-forms';
 
 export function FactsPage() {
@@ -65,7 +66,11 @@ export function FactsPage() {
         <EmptyState
           icon={ClipboardList}
           title="Nothing added yet"
-          description="Start with a treatment description, document, or the fictional sample case."
+          description={
+            backgroundJobsEnabled
+              ? 'Start with a treatment description, document, or the fictional sample case.'
+              : 'Enter treatment details manually or start with the fictional sample case.'
+          }
           action={<Button onClick={() => navigate('/')}>Start on Home</Button>}
         />
       </div>
@@ -354,8 +359,10 @@ export function FactsPage() {
               {missing.length === 1
                 ? 'One detail needs'
                 : missing.length + ' details need'}{' '}
-              an answer before the comparison is available. I’ll ask for them
-              next.
+              an answer before the comparison is available.{' '}
+              {backgroundJobsEnabled
+                ? 'I’ll ask for them next.'
+                : 'Enter the missing details manually to continue.'}
             </Notice>
           )}
         </aside>

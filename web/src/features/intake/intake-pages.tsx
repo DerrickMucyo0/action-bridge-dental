@@ -12,6 +12,8 @@ import {
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Badge, Button, Disclosure, Notice, Orb } from '../../components/ui';
+import { BackgroundUnavailable } from '../../components/background-unavailable';
+import { backgroundJobsEnabled } from '../../config';
 import {
   addAttachment,
   analyseState,
@@ -54,6 +56,14 @@ type Mode = 'speak' | 'upload' | 'photo' | 'type';
  * until the user asks. The assistant then shows what it understood before anything is used.
  */
 export function ComposerPage() {
+  return backgroundJobsEnabled ? (
+    <EnabledComposerPage />
+  ) : (
+    <BackgroundUnavailable />
+  );
+}
+
+function EnabledComposerPage() {
   const api = useApi();
   const { create } = useCase();
   const navigate = useNavigate();

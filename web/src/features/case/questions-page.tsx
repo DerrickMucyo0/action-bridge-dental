@@ -2,6 +2,8 @@ import { ClipboardList } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, EmptyState, Orb } from '../../components/ui';
+import { BackgroundUnavailable } from '../../components/background-unavailable';
+import { backgroundJobsEnabled } from '../../config';
 import { asApiError, type ApiError } from '../../services/api';
 import { useApi } from '../../state/auth';
 import { useCase } from '../../state/case-store';
@@ -12,6 +14,14 @@ import { ApiNotice } from '../assistant/assistant-page';
  * decides; the assistant groups the questions (at most four at a time) and offers "I don't know".
  */
 export function QuestionsPage() {
+  return backgroundJobsEnabled ? (
+    <EnabledQuestionsPage />
+  ) : (
+    <BackgroundUnavailable />
+  );
+}
+
+function EnabledQuestionsPage() {
   const api = useApi();
   const { record, loading } = useCase();
   const navigate = useNavigate();

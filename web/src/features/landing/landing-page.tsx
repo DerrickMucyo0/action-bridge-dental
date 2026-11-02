@@ -7,6 +7,7 @@ import {
   PlanIllustration,
 } from '../../components/landing-illustrations';
 import { WelcomeVisual } from '../../components/welcome-visual';
+import { appConfig } from '../../config';
 import '../../landing.css';
 
 const FAQ: [string, string][] = [
@@ -28,7 +29,12 @@ const FAQ: [string, string][] = [
   ],
 ];
 
-const GET_STARTED = '/sign-in?mode=create';
+const CORE_PREVIEW = appConfig.ok && !appConfig.config.backgroundJobsEnabled;
+const GET_STARTED =
+  CORE_PREVIEW ||
+  !(appConfig.ok && appConfig.config.publicAccountActionsEnabled)
+    ? '/sign-in'
+    : '/sign-in?mode=create';
 
 function Brand() {
   return (
@@ -302,6 +308,13 @@ export function LandingPage() {
                 Understand your treatment estimate, see how your benefits may
                 apply, and compare your next steps with greater clarity.
               </p>
+              {CORE_PREVIEW && (
+                <p className="lp-preview-notice" role="note">
+                  This preview supports manual entry and cost comparisons. AI
+                  analysis, uploads and voice are unavailable. Sign in with an
+                  existing test account and use fictional details only.
+                </p>
+              )}
               <div className="lp-hero-cta lp-only-full">
                 <Link to={GET_STARTED} className="lp-btn lp-btn-lg">
                   Get started
