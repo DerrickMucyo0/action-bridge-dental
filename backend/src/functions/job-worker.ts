@@ -49,15 +49,15 @@ function build(): WorkerRuntime {
     deps: {
       jobs: new DynamoJobRepository(documentClient, table),
       cases: new DynamoCaseRepository(documentClient, table),
-      model: new BedrockAgentModel(new BedrockRuntimeClient({}), requireBedrockModelId(config)),
+      model: new BedrockAgentModel(new BedrockRuntimeClient({ maxAttempts: 1 }), requireBedrockModelId(config)),
       now: () => new Date(),
       newId: randomUUID,
       retentionDays: config.retentionDays,
       leaseMs: 300_000, // Longer than the worker timeout (240 s), so a running job is never reclaimed.
       uploads: new S3UploadStore(new S3Client({}), requireUploadBucket(config)),
-      transcriber: new AwsTranscriber(new TranscribeClient({})),
+      transcriber: new AwsTranscriber(new TranscribeClient({ maxAttempts: 1 })),
       ...(transcriptionJobPrefix ? { transcriptionJobPrefix } : {}),
-      reader: new TextractReader(new TextractClient({})),
+      reader: new TextractReader(new TextractClient({ maxAttempts: 1 })),
     },
   };
 }

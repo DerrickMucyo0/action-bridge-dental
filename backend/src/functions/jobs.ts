@@ -36,6 +36,6 @@ export const handler = composeHandler((config) => {
   return {
     ...jobRoutes({ jobs, uploads, authMode: config.authMode }),
     // Neural voices aren't offered in us-east-2; Polly runs in us-east-1 (text only, nothing stored).
-    ...speechRoutes({ ...controls, synthesizer: new PollySynthesizer(new PollyClient({ region: process.env.POLLY_REGION ?? 'us-east-1' })), authMode: config.authMode }),
+    ...speechRoutes({ ...controls, synthesizer: new PollySynthesizer(new PollyClient({ region: process.env.POLLY_REGION ?? 'us-east-1', maxAttempts: 1 })), authMode: config.authMode }),
   };
 });
