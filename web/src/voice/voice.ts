@@ -1,6 +1,7 @@
 import { speakable } from '@actionbridge/contracts';
 import { useEffect, useSyncExternalStore } from 'react';
 import type { ApiClient } from '../services/api';
+import { backgroundJobsEnabled } from '../config';
 
 /**
  * Voice guidance: approved screens read their key content aloud (Amazon Polly, with the browser
@@ -20,6 +21,7 @@ function read(): boolean {
 let voiceOn = read();
 
 export function setVoiceGuidance(on: boolean) {
+  if (!backgroundJobsEnabled) return;
   voiceOn = on;
   try {
     localStorage.setItem(KEY, on ? 'on' : 'off');
@@ -36,7 +38,7 @@ export function useVoiceGuidance(): boolean {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    () => voiceOn,
+    () => backgroundJobsEnabled && voiceOn,
     () => false,
   );
 }
@@ -54,6 +56,7 @@ export function stopSpeaking() {
 
 /** Speaks the text and resolves when it has finished (or was stopped). */
 export async function speak(api: ApiClient, text: string): Promise<void> {
+  if (!backgroundJobsEnabled) return;
   stopSpeaking();
   const spoken = speakable(text);
   if (!spoken) return;

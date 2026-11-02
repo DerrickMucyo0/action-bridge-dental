@@ -1,5 +1,5 @@
 import type { AgentJobView } from '@actionbridge/contracts';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isTerminal, pollDelayMs } from '../domain/answers';
 import { asApiError, type ApiClient, type ApiError } from '../services/api';
 import { useApi } from './auth';
@@ -16,9 +16,15 @@ export function useJob(jobId: string | undefined) {
   const [error, setError] = useState<ApiError | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const generation = useRef(0);
+  const subscription = useMemo(() => ({ jobId }), [api, jobId]);
+  const activeSubscription = useRef<typeof subscription | null>(null);
+  const isCurrentSubscription = useCallback(
+    () => activeSubscription.current === subscription,
+    [subscription],
+  );
 
   const follow = useCallback(async () => {
-    if (!jobId) return;
+    if (!jobId || !isCurrentSubscription()) return;
     const mine = ++generation.current;
     setError(null);
     setTimedOut(false);
@@ -39,17 +45,39 @@ export function useJob(jobId: string | undefined) {
       }
       await new Promise((resolve) => setTimeout(resolve, pollDelayMs(attempt)));
     }
-  }, [api, jobId]);
+  }, [api, jobId, isCurrentSubscription]);
 
   useEffect(() => {
+    activeSubscription.current = subscription;
     setJob(null);
     void follow();
     return () => {
+      activeSubscription.current = null;
       generation.current++;
     };
-  }, [follow]);
+  }, [follow, subscription]);
 
-  return { job, error, timedOut, refresh: follow };
+  /** An action response supersedes polls already in flight for this job. */
+  const acceptUpdate = useCallback(
+    (next: AgentJobView) => {
+      if (!isCurrentSubscription() || next.jobId !== jobId) return;
+      generation.current++;
+      setJob(next);
+      setError(null);
+      setTimedOut(false);
+      if (!isTerminal(next.status)) void follow();
+    },
+    [follow, isCurrentSubscription, jobId],
+  );
+
+  return {
+    job,
+    error,
+    timedOut,
+    refresh: follow,
+    acceptUpdate,
+    isCurrentSubscription,
+  };
 }
 
 /** Polls a job until it needs the user or ends; bounded so a screen never waits forever. */

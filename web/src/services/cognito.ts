@@ -68,6 +68,14 @@ const FRIENDLY: Record<string, string> = {
 
 type Json = Record<string, unknown>;
 
+const PUBLIC_ACCOUNT_OPERATIONS = new Set([
+  'SignUp',
+  'ConfirmSignUp',
+  'ResendConfirmationCode',
+  'ForgotPassword',
+  'ConfirmForgotPassword',
+]);
+
 function asJson(value: unknown): Json {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as Json)
@@ -98,13 +106,20 @@ export function createCognitoClient({
   clientId,
   now = Date.now,
   fetchImpl = (...args) => fetch(...args),
+  publicAccountActionsEnabled = true,
 }: {
   region: string;
   clientId: string;
   now?: () => number;
   fetchImpl?: typeof fetch;
+  publicAccountActionsEnabled?: boolean;
 }) {
   async function call(target: string, body: Json): Promise<Json> {
+    if (!publicAccountActionsEnabled && PUBLIC_ACCOUNT_OPERATIONS.has(target))
+      throw new CognitoError(
+        'FEATURE_UNAVAILABLE',
+        'Account creation, verification and password reset are unavailable in this version. Contact the staging owner for account help.',
+      );
     let response: Response;
     try {
       response = await fetchImpl(
@@ -132,7 +147,15 @@ export function createCognitoClient({
           .pop() ?? 'Unknown';
       // Never display Cognito's raw message: it can contain internal configuration
       // details and user input. Keep the code for actionable UI recovery flows.
-      throw new CognitoError(code, errorMessage(target, code));
+      const message =
+        !publicAccountActionsEnabled &&
+        [
+          'UserNotConfirmedException',
+          'PasswordResetRequiredException',
+        ].includes(code)
+          ? 'This account needs help from the staging owner before it can sign in.'
+          : errorMessage(target, code);
+      throw new CognitoError(code, message);
     }
     return json;
   }

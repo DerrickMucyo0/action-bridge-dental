@@ -31,6 +31,7 @@ import { ApiNotice } from '../assistant/assistant-page';
 import { ledgerTitle, PlanHistory, QuestionCard } from '../saved/saved-pages';
 import { BenefitsLeft } from '../options/options-page';
 import { VoiceToggle } from '../../components/listen';
+import { backgroundJobsEnabled } from '../../config';
 
 type Summary = { record: DentalCase; saved: SavedStrategy | null };
 
@@ -43,13 +44,14 @@ function useSummaries(ids: string[], limit: number) {
   useEffect(() => {
     let live = true;
     setError(null);
+    setSummaries(null);
     const wanted = key ? key.split(',') : [];
     void Promise.all(
       wanted.map(async (id): Promise<Summary | null> => {
         try {
           const [record, strategies] = await Promise.all([
             api.getCase(id),
-            api.listStrategies(id).catch(() => ({ strategies: [] })),
+            api.listStrategies(id),
           ]);
           return { record, saved: strategies.strategies[0] ?? null };
         } catch (caught) {
@@ -257,30 +259,44 @@ export function ActivityPage() {
   const { recent } = useCase();
   const navigate = useNavigate();
   const [events, setEvents] = useState<LedgerEvent[] | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [refresh, setRefresh] = useState(0);
   const key = recent.slice(0, 5).join(',');
   useEffect(() => {
     let live = true;
+    setEvents(null);
+    setError(null);
     const ids = key ? key.split(',') : [];
     void Promise.all(
       ids.map((id) =>
         api
           .ledger(id)
           .then((p) => p.events)
-          .catch(() => [] as LedgerEvent[]),
+          .catch((caught: unknown) => {
+            const failure = asApiError(caught);
+            // Expired cases can remain in this browser's recent list. Other
+            // failures must not be presented as an empty server ledger.
+            if (failure.code === 'NOT_FOUND') return [] as LedgerEvent[];
+            throw failure;
+          }),
       ),
-    ).then((pages) => {
-      if (live)
-        setEvents(
-          pages
-            .flat()
-            .sort((a, b) => b.at.localeCompare(a.at))
-            .slice(0, 50),
-        );
-    });
+    )
+      .then((pages) => {
+        if (live)
+          setEvents(
+            pages
+              .flat()
+              .sort((a, b) => b.at.localeCompare(a.at))
+              .slice(0, 50),
+          );
+      })
+      .catch((caught: unknown) => {
+        if (live) setError(asApiError(caught));
+      });
     return () => {
       live = false;
     };
-  }, [api, key]);
+  }, [api, key, refresh]);
   return (
     <div className="page medium">
       <PageHeading
@@ -299,10 +315,21 @@ export function ActivityPage() {
           <h3>Your cases</h3>
           <CaseList />
           <h3>Recent actions</h3>
-          {!events ? (
+          {error ? (
+            <ApiNotice
+              error={error}
+              onRetry={
+                error.options.retryable
+                  ? () => setRefresh((value) => value + 1)
+                  : undefined
+              }
+            />
+          ) : !events ? (
             <p className="muted small" role="status">
               Loading activity…
             </p>
+          ) : events.length === 0 ? (
+            <p className="muted small">No recent actions were returned.</p>
           ) : (
             <ol className="activity-list">
               {events.map((event) => (
@@ -395,27 +422,38 @@ export function ProfilePage() {
           <h3>Voice guidance</h3>
           <VoiceToggle />
         </div>
-        <p className="muted">
-          When it’s on, key screens read themselves aloud as you open them —
-          what I found, the questions and your results — and you can answer “Is
-          this right?” by voice: say yes, not right, or I don’t know. The
-          microphone opens for a few seconds only after a question.
-        </p>
-        <p className="small muted">
-          Voice answers work in Chrome, Edge and Safari. You can always tap
-          instead.
-        </p>
+        {backgroundJobsEnabled ? (
+          <>
+            <p className="muted">
+              When it’s on, key screens read themselves aloud as you open them —
+              what I found, the questions and your results — and you can answer
+              “Is this right?” by voice: say yes, not right, or I don’t know.
+              The microphone opens for a few seconds only after a question.
+            </p>
+            <p className="small muted">
+              Voice answers work in Chrome, Edge and Safari. You can always tap
+              instead.
+            </p>
+          </>
+        ) : (
+          <p className="muted">
+            Voice guidance is unavailable in this version. Use the on-screen
+            controls instead.
+          </p>
+        )}
       </Card>
       <Card>
         <h3>About your data</h3>
         <p className="muted">
-          Your cases, answers and saved plans are stored in your account.
-          Uploaded documents and voice notes are read once and then deleted.
-          Nothing is shared with your dentist or insurer.
+          Your cases, answers and saved plans are stored in your account. When
+          document and voice features are enabled, the service attempts to
+          delete raw uploads after processing. Failed or unfinished processing
+          can retain uploads until storage cleanup runs. Nothing is shared with
+          your dentist or insurer.
         </p>
         <p className="small muted">
-          This browser remembers only which cases you opened. Signing out ends
-          your session here.
+          This browser remembers recent case links and your display name. Your
+          sign-in session is kept in this tab until you sign out or close it.
         </p>
       </Card>
       <div className="actions">

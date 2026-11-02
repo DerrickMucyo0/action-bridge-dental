@@ -132,7 +132,7 @@ export function CaseProvider({ children }: { children: ReactNode }) {
       try {
         const [next, strategies] = await Promise.all([
           api.getCase(id),
-          api.listStrategies(id).catch(() => ({ strategies: [] })),
+          api.listStrategies(id),
         ]);
         if (mine !== generation.current) return null;
         setRecord(next);
@@ -142,6 +142,10 @@ export function CaseProvider({ children }: { children: ReactNode }) {
         if (mine !== generation.current) return null;
         const failure = asApiError(caught);
         setError(failure);
+        // An unavailable strategy read cannot establish that this case has no
+        // saved plan. Withhold the combined view until both reads succeed.
+        setRecord(null);
+        setSavedState(null);
         // A case that no longer exists (expired or another account's) leaves the recent list.
         if (failure.code === 'NOT_FOUND') {
           setRecent((current) => {

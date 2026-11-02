@@ -91,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? createCognitoClient({
             region: appConfig.config.cognitoRegion,
             clientId: appConfig.config.cognitoClientId,
+            publicAccountActionsEnabled:
+              appConfig.config.publicAccountActionsEnabled,
           })
         : null,
     [],
@@ -98,49 +100,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>(() =>
     readStored() ? 'restoring' : 'signed_out',
   );
+  const [sessionGeneration, setSessionGeneration] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
   const [ended, setEnded] = useState<EndReason | null>(null);
   const tokens = useRef<Tokens | null>(null);
   const email = useRef<string | null>(null);
   const challenge = useRef<string | null>(null);
   const refreshing = useRef<Promise<string | null> | null>(null);
+  const generation = useRef(0);
 
-  const begin = useCallback((address: string, next: Tokens) => {
-    tokens.current = next;
-    email.current = address;
-    store({ email: address, refreshToken: next.refreshToken });
-    setSession({ email: address, name: displayName(address) });
-    setEnded(null);
-    setStatus('signed_in');
+  // Invalidate pending refreshes and API clients synchronously, before React renders.
+  // An older session must never dispatch with a token returned after sign-out.
+  const invalidate = useCallback(() => {
+    generation.current += 1;
+    refreshing.current = null;
+    setSessionGeneration(generation.current);
   }, []);
 
-  const end = useCallback((reason: EndReason) => {
-    challenge.current = null;
-    tokens.current = null;
-    email.current = null;
-    store(null);
-    setSession(null);
-    setEnded(reason);
-    setStatus('signed_out');
-  }, []);
+  const begin = useCallback(
+    (address: string, next: Tokens) => {
+      invalidate();
+      tokens.current = next;
+      email.current = address;
+      store({ email: address, refreshToken: next.refreshToken });
+      setSession({ email: address, name: displayName(address) });
+      setEnded(null);
+      setStatus('signed_in');
+    },
+    [invalidate],
+  );
+
+  const end = useCallback(
+    (reason: EndReason) => {
+      invalidate();
+      challenge.current = null;
+      tokens.current = null;
+      email.current = null;
+      store(null);
+      setSession(null);
+      setEnded(reason);
+      setStatus('signed_out');
+    },
+    [invalidate],
+  );
 
   /** A valid access token, refreshed a minute before expiry; null when the session is over. */
   const getAccessToken = useCallback(async (): Promise<string | null> => {
+    const requestedGeneration = generation.current;
     const current = tokens.current;
     if (current && current.expiresAt - 60_000 > Date.now())
       return current.accessToken;
     const refreshToken = current?.refreshToken ?? readStored()?.refreshToken;
     if (!cognito || !refreshToken) return null;
-    refreshing.current ??= cognito
-      .refresh(refreshToken)
-      .then((next) => {
-        tokens.current = next;
-        return next.accessToken;
-      })
-      .catch(() => null)
-      .finally(() => {
-        refreshing.current = null;
-      });
+    if (!refreshing.current) {
+      const request = cognito
+        .refresh(refreshToken)
+        .then((next) => {
+          if (generation.current !== requestedGeneration) return null;
+          tokens.current = next;
+          return next.accessToken;
+        })
+        .catch(() => null)
+        .finally(() => {
+          // A stale refresh must not clear a newer session's pending refresh.
+          if (refreshing.current === request) refreshing.current = null;
+        });
+      refreshing.current = request;
+    }
     return refreshing.current;
   }, [cognito]);
 
@@ -149,8 +175,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const stored = readStored();
     if (!stored) return;
     let live = true;
+    const requestedGeneration = generation.current;
     void getAccessToken().then((token) => {
-      if (!live) return;
+      if (!live || generation.current !== requestedGeneration) return;
       if (token && tokens.current) begin(stored.email, tokens.current);
       else end('expired');
     });
@@ -164,11 +191,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       appConfig.ok
         ? createApiClient({
             baseUrl: appConfig.config.apiBaseUrl,
-            getAccessToken,
-            onUnauthenticated: () => end('expired'),
+            backgroundJobsEnabled: appConfig.config.backgroundJobsEnabled,
+            getAccessToken: async () => {
+              if (generation.current !== sessionGeneration) return null;
+              const token = await getAccessToken();
+              return generation.current === sessionGeneration ? token : null;
+            },
+            onUnauthenticated: () => {
+              // A rejected request from an older client cannot end a new login.
+              if (generation.current === sessionGeneration) end('expired');
+            },
           })
         : null,
-    [getAccessToken, end],
+    [getAccessToken, end, sessionGeneration],
   );
 
   function requireCognito(): CognitoClient {
@@ -196,11 +231,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       ),
     signIn: async (address, password) => {
+      invalidate();
+      tokens.current = null;
+      email.current = null;
+      store(null);
+      setSession(null);
+      setStatus('signed_out');
+      const requestedGeneration = generation.current;
       challenge.current = null;
       if (!cognito)
         throw new CognitoError('CONFIG', 'Sign-in is not configured.');
       const normalized = address.trim().toLowerCase();
       const result = await cognito.signIn(normalized, password);
+      if (generation.current !== requestedGeneration)
+        throw new CognitoError(
+          'SESSION',
+          'This sign-in is no longer active. Start again.',
+        );
       if (result.kind === 'new_password_required') {
         email.current = normalized;
         challenge.current = result.session;
@@ -212,16 +259,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     completeNewPassword: async (newPassword) => {
       if (!cognito || !email.current || !challenge.current)
         throw new CognitoError('SESSION', 'Start again from sign-in.');
+      const requestedGeneration = generation.current;
+      const address = email.current;
       const next = await cognito.completeNewPassword(
-        email.current,
+        address,
         newPassword,
         challenge.current,
       );
+      if (generation.current !== requestedGeneration)
+        throw new CognitoError(
+          'SESSION',
+          'This sign-in is no longer active. Start again.',
+        );
       challenge.current = null;
-      begin(email.current, next);
+      begin(address, next);
     },
     signOut: async (reason = 'signed_out') => {
-      const refreshToken = tokens.current?.refreshToken;
+      const refreshToken =
+        tokens.current?.refreshToken ?? readStored()?.refreshToken;
       end(reason);
       if (cognito && refreshToken) await cognito.revoke(refreshToken);
     },

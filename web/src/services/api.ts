@@ -49,6 +49,7 @@ export type ApiErrorCode =
   | 'INCONSISTENT_INPUT'
   | 'RATE_LIMITED'
   | 'UPSTREAM_UNAVAILABLE'
+  | 'FEATURE_UNAVAILABLE'
   | 'INTERNAL';
 
 export class ApiError extends Error {
@@ -76,6 +77,7 @@ export interface ApiClientOptions {
   random?: () => number;
   /** Called when a call finds the session ended (no token or HTTP 401), before the error is thrown. */
   onUnauthenticated?: () => void;
+  backgroundJobsEnabled?: boolean;
 }
 
 export function createApiClient({
@@ -86,7 +88,18 @@ export function createApiClient({
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   random = Math.random,
   onUnauthenticated,
+  backgroundJobsEnabled = true,
 }: ApiClientOptions) {
+  const background = <T>(run: () => Promise<T>): Promise<T> =>
+    backgroundJobsEnabled
+      ? run()
+      : Promise.reject(
+          new ApiError(
+            'FEATURE_UNAVAILABLE',
+            'Assistant analysis, uploads and voice are unavailable in this version. Enter details manually instead.',
+            { retryable: false },
+          ),
+        );
   const sessionEnded = (error: ApiError) => {
     onUnauthenticated?.();
     return error;
@@ -108,6 +121,7 @@ export function createApiClient({
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let response: Response;
+    let json: unknown;
     try {
       response = await fetchImpl(`${baseUrl}${path}`, {
         method,
@@ -119,24 +133,40 @@ export function createApiClient({
         signal: controller.signal,
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
+      if (response.status === 401) {
+        // The status already establishes an expired/rejected session. Do not
+        // wait for an error body before ending it; stop reading that body.
+        controller.abort();
+      } else {
+        // Fetch resolves when headers arrive. Keep the deadline active while
+        // reading the body so a stalled response cannot leave the UI pending.
+        // Invalid JSON remains a schema/BAD_RESPONSE failure below.
+        json = await response.json().catch(() => undefined);
+        if (controller.signal.aborted)
+          throw new DOMException('Response deadline exceeded', 'AbortError');
+      }
     } catch {
+      const safeRead = method === 'GET' || method === 'HEAD';
       if (controller.signal.aborted)
         throw new ApiError(
           'TIMEOUT',
-          'The server took too long to respond. Your input is safe — try again.',
-          { retryable: true },
+          safeRead
+            ? 'The server took too long to respond. Your input is safe — try again.'
+            : 'The request timed out before its outcome could be confirmed. Check your saved records before submitting again.',
+          { retryable: safeRead },
         );
       throw new ApiError(
         'NETWORK',
-        'Can’t reach the service. Your input is safe — check your connection and try again.',
-        { retryable: true },
+        safeRead
+          ? 'Can’t reach the service. Your input is safe — check your connection and try again.'
+          : 'The connection failed before the request outcome could be confirmed. Check your saved records before submitting again.',
+        { retryable: safeRead },
       );
     } finally {
       clearTimeout(timer);
     }
 
     const requestId = response.headers.get('x-request-id') ?? undefined;
-    const json: unknown = await response.json().catch(() => undefined);
 
     if (response.status === 401)
       throw sessionEnded(
@@ -276,36 +306,49 @@ export function createApiClient({
         LedgerPageSchema,
       ),
     createUpload: (caseId: string, request: CreateUploadRequest) =>
-      once(
-        'POST',
-        `${casePath(caseId)}/uploads`,
-        CreateUploadResponseSchema,
-        request,
+      background(() =>
+        once(
+          'POST',
+          `${casePath(caseId)}/uploads`,
+          CreateUploadResponseSchema,
+          request,
+        ),
       ),
     createJob: (caseId: string, request: CreateJobRequest) =>
-      once(
-        'POST',
-        `${casePath(caseId)}/jobs`,
-        CreateJobResponseSchema,
-        request,
+      background(() =>
+        once(
+          'POST',
+          `${casePath(caseId)}/jobs`,
+          CreateJobResponseSchema,
+          request,
+        ),
       ),
-    getJob: (jobId: string) => read(jobPath(jobId), AgentJobViewSchema),
+    getJob: (jobId: string) =>
+      background(() => read(jobPath(jobId), AgentJobViewSchema)),
     answerJob: (jobId: string, request: JobAnswersRequest) =>
-      once(
-        'POST',
-        `${jobPath(jobId)}/answers`,
-        CreateJobResponseSchema,
-        request,
+      background(() =>
+        once(
+          'POST',
+          `${jobPath(jobId)}/answers`,
+          CreateJobResponseSchema,
+          request,
+        ),
       ),
     retryJob: (jobId: string) =>
-      once('POST', `${jobPath(jobId)}/retry`, CreateJobResponseSchema, {}),
+      background(() =>
+        once('POST', `${jobPath(jobId)}/retry`, CreateJobResponseSchema, {}),
+      ),
     /** Amazon Polly reads short app text aloud (accessibility). */
     speech: (text: string) =>
-      once('POST', '/v1/speech', SpeechResponseSchema, {
-        text: text.slice(0, 1500),
-      }),
+      background(() =>
+        once('POST', '/v1/speech', SpeechResponseSchema, {
+          text: text.slice(0, 1500),
+        }),
+      ),
     cancelJob: (jobId: string) =>
-      once('POST', `${jobPath(jobId)}/cancel`, AgentJobViewSchema, {}),
+      background(() =>
+        once('POST', `${jobPath(jobId)}/cancel`, AgentJobViewSchema, {}),
+      ),
   };
 }
 
