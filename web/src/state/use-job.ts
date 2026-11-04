@@ -16,6 +16,7 @@ export function useJob(jobId: string | undefined) {
   const [error, setError] = useState<ApiError | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const generation = useRef(0);
+  const pollTimer = useRef<number | null>(null);
   const subscription = useMemo(() => ({ jobId }), [api, jobId]);
   const activeSubscription = useRef<typeof subscription | null>(null);
   const isCurrentSubscription = useCallback(
@@ -23,56 +24,80 @@ export function useJob(jobId: string | undefined) {
     [subscription],
   );
 
+  const clearPollTimer = useCallback(() => {
+    if (pollTimer.current !== null) {
+      window.clearTimeout(pollTimer.current);
+      pollTimer.current = null;
+    }
+  }, []);
+
+  const pause = useCallback(() => {
+    generation.current++;
+    clearPollTimer();
+  }, [clearPollTimer]);
+
   const follow = useCallback(async () => {
     if (!jobId || !isCurrentSubscription()) return;
+    clearPollTimer();
     const mine = ++generation.current;
     setError(null);
     setTimedOut(false);
     const started = Date.now();
-    for (let attempt = 0; generation.current === mine; attempt++) {
+    for (
+      let attempt = 0;
+      generation.current === mine && isCurrentSubscription();
+      attempt++
+    ) {
       try {
         const next = await api.getJob(jobId);
-        if (generation.current !== mine) return;
+        if (generation.current !== mine || !isCurrentSubscription()) return;
         setJob(next);
         if (isTerminal(next.status)) return;
       } catch (caught) {
-        if (generation.current === mine) setError(asApiError(caught));
+        if (generation.current === mine && isCurrentSubscription())
+          setError(asApiError(caught));
         return;
       }
       if (Date.now() - started > MAX_WAIT_MS) {
         setTimedOut(true);
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, pollDelayMs(attempt)));
+      await new Promise<void>((resolve) => {
+        pollTimer.current = window.setTimeout(() => {
+          pollTimer.current = null;
+          resolve();
+        }, pollDelayMs(attempt));
+      });
     }
-  }, [api, jobId, isCurrentSubscription]);
+  }, [api, clearPollTimer, jobId, isCurrentSubscription]);
 
   useEffect(() => {
     activeSubscription.current = subscription;
     setJob(null);
-    void follow();
+    const startTimer = window.setTimeout(() => {
+      void follow();
+    }, 0);
     return () => {
+      window.clearTimeout(startTimer);
+      clearPollTimer();
       activeSubscription.current = null;
       generation.current++;
     };
-  }, [follow, subscription]);
+  }, [clearPollTimer, follow, subscription]);
 
   /** An action response supersedes polls already in flight for this job. */
   const acceptUpdate = useCallback(
     (next: AgentJobView) => {
       if (!isCurrentSubscription() || next.jobId !== jobId) return;
       generation.current++;
+      clearPollTimer();
       setJob(next);
       setError(null);
       setTimedOut(false);
       if (!isTerminal(next.status)) void follow();
     },
-    [follow, isCurrentSubscription, jobId],
+    [clearPollTimer, follow, isCurrentSubscription, jobId],
   );
-
-  const pause = useCallback(() => {
-    generation.current++;
-  }, []);
 
   return {
     job,
