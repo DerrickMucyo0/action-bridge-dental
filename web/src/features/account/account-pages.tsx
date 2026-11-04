@@ -267,34 +267,37 @@ export function ActivityPage() {
     setEvents(null);
     setError(null);
     const ids = key ? key.split(',') : [];
-    void Promise.all(
-      ids.map((id) =>
-        api
-          .ledger(id)
-          .then((p) => p.events)
-          .catch((caught: unknown) => {
-            const failure = asApiError(caught);
-            // Expired cases can remain in this browser's recent list. Other
-            // failures must not be presented as an empty server ledger.
-            if (failure.code === 'NOT_FOUND') return [] as LedgerEvent[];
-            throw failure;
-          }),
-      ),
-    )
-      .then((pages) => {
-        if (live)
-          setEvents(
-            pages
-              .flat()
-              .sort((a, b) => b.at.localeCompare(a.at))
-              .slice(0, 50),
-          );
-      })
-      .catch((caught: unknown) => {
-        if (live) setError(asApiError(caught));
-      });
+    const timer = window.setTimeout(() => {
+      void Promise.all(
+        ids.map((id) =>
+          api
+            .ledger(id)
+            .then((p) => p.events)
+            .catch((caught: unknown) => {
+              const failure = asApiError(caught);
+              // Expired cases can remain in this browser's recent list. Other
+              // failures must not be presented as an empty server ledger.
+              if (failure.code === 'NOT_FOUND') return [] as LedgerEvent[];
+              throw failure;
+            }),
+        ),
+      )
+        .then((pages) => {
+          if (live)
+            setEvents(
+              pages
+                .flat()
+                .sort((a, b) => b.at.localeCompare(a.at))
+                .slice(0, 50),
+            );
+        })
+        .catch((caught: unknown) => {
+          if (live) setError(asApiError(caught));
+        });
+    }, 0);
     return () => {
       live = false;
+      window.clearTimeout(timer);
     };
   }, [api, key, refresh]);
   return (

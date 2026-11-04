@@ -146,7 +146,13 @@ export function createApiClient({
           throw new DOMException('Response deadline exceeded', 'AbortError');
       }
     } catch {
-      const safeRead = method === 'GET' || method === 'HEAD';
+      const safeRead =
+        method === 'GET' ||
+        method === 'HEAD' ||
+        path.endsWith('/plan-comparison') ||
+        path.endsWith('/estimates') ||
+        path.endsWith('/scenarios') ||
+        path.endsWith('/coverage-comparison');
       if (controller.signal.aborted)
         throw new ApiError(
           'TIMEOUT',
