@@ -248,6 +248,7 @@ test('a late stop response cannot restart polling after leaving the assistant', 
   await expect.poll(() => cancellationStarted).toBe(true);
   await page.getByRole('link', { name: 'Home', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
+  await flushRenderedResponse(page);
   const readsBeforeResponse = reads;
   const response = page.waitForResponse((item) =>
     item.url().endsWith(`/v1/jobs/${JOB_ID}/cancel`),

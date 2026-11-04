@@ -72,8 +72,15 @@ export function AssistantPage() {
 
 function EnabledAssistantPage() {
   const { jobId } = useParams<{ jobId: string }>();
-  const { job, error, timedOut, refresh, acceptUpdate, isCurrentSubscription } =
-    useJob(jobId);
+  const {
+    job,
+    error,
+    timedOut,
+    refresh,
+    pause,
+    acceptUpdate,
+    isCurrentSubscription,
+  } = useJob(jobId);
   const api = useApi();
   const navigate = useNavigate();
   const [actionError, setActionError] = useState<ApiError | null>(null);
@@ -117,13 +124,17 @@ function EnabledAssistantPage() {
           cancelAction.current = action;
           const stillCurrent = () =>
             cancelAction.current === action && isCurrentSubscription();
+          pause();
           setCancelling(true);
           setActionError(null);
           try {
             const next = await api.cancelJob(id);
             if (stillCurrent()) acceptUpdate(next);
           } catch (caught) {
-            if (stillCurrent()) setActionError(asApiError(caught));
+            if (stillCurrent()) {
+              setActionError(asApiError(caught));
+              void refresh();
+            }
           } finally {
             if (stillCurrent()) {
               cancelAction.current = null;

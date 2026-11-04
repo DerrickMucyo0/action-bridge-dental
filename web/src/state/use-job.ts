@@ -70,11 +70,16 @@ export function useJob(jobId: string | undefined) {
     [follow, isCurrentSubscription, jobId],
   );
 
+  const pause = useCallback(() => {
+    generation.current++;
+  }, []);
+
   return {
     job,
     error,
     timedOut,
     refresh: follow,
+    pause,
     acceptUpdate,
     isCurrentSubscription,
   };
